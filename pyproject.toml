@@ -1,0 +1,79 @@
+[project]
+name = "anvil"
+version = "1.0.0"
+description = "Anvil - agentic revenue recovery control plane for failed recurring payments"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "greenlet>=3.1.0",
+    "langgraph>=0.2.50",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    "psycopg[binary,pool]>=3.2.0",
+    "anthropic>=0.40.0",
+    "httpx>=0.27.0",
+    "structlog>=24.4.0",
+    "orjson>=3.10.0",
+    "redis>=5.2.0",
+    "tenacity>=9.0.0",
+    "python-dateutil>=2.9.0",
+    "numpy>=2.1.0",
+    "sse-starlette>=2.1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.115.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "types-python-dateutil",
+    "freezegun>=1.5.0",
+    "respx>=0.21.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["anvil"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["anvil", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "ASYNC", "S", "DTZ", "T20"]
+ignore = ["S101", "B008", "N818", "RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "T20"]
+"scripts/**" = ["T20"]
+"anvil/simulator/**" = ["S311"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+disallow_any_generics = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requires a live Postgres",
+    "e2e: full stack end-to-end",
+    "invariant: enforces a financial invariant from ARCHITECTURE.md section 6",
+]
