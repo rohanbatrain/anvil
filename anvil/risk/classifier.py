@@ -301,9 +301,7 @@ class ClassificationEvidence:
         )
 
 
-def _code_evidence(
-    field_name: str, text: str, rail: str | None
-) -> list[ClassificationEvidence]:
+def _code_evidence(field_name: str, text: str, rail: str | None) -> list[ClassificationEvidence]:
     """Pull rail reason codes out of one field.
 
     A structured ``raw_code`` field is trusted to contain a code, so every token
@@ -340,7 +338,7 @@ def _code_evidence(
                 )
             )
             continue
-        distinct = {fc for fc in hits.values()}
+        distinct = set(hits.values())
         if len(distinct) == 1:
             namespace, failure_class = next(iter(hits.items()))
             out.append(
@@ -367,9 +365,7 @@ def _looks_like_rail_code(token: str) -> bool:
     structured code field or behind a marker word.
     """
     return (
-        2 <= len(token) <= 4
-        and any(c.isdigit() for c in token)
-        and any(c.isalpha() for c in token)
+        2 <= len(token) <= 4 and any(c.isdigit() for c in token) and any(c.isalpha() for c in token)
     )
 
 
@@ -579,9 +575,7 @@ def classify_signals(signals: ClassificationSignals) -> ClassificationResult:
     strongest: dict[FailureClass, int] = {}
     supporters: dict[FailureClass, set[str]] = {}
     for item in evidence:
-        strongest[item.failure_class] = max(
-            strongest.get(item.failure_class, 0), item.weight_bps
-        )
+        strongest[item.failure_class] = max(strongest.get(item.failure_class, 0), item.weight_bps)
         supporters.setdefault(item.failure_class, set()).add(item.field_name)
 
     scored = {
