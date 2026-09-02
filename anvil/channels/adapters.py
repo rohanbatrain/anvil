@@ -188,7 +188,9 @@ class SimulatedSend:
 # ---------------------------------------------------------------------------
 
 
-def _render_email(message: OutboundMessage, *, sender: str, at: dt.datetime, message_id: str) -> str:
+def _render_email(
+    message: OutboundMessage, *, sender: str, at: dt.datetime, message_id: str
+) -> str:
     """Render an RFC-822-shaped message. Pure, so the format is testable."""
     headers = [
         f"From: {sender}",
@@ -322,7 +324,9 @@ class LocalOutboxEmailAdapter:
             ensure_ascii=False,
             sort_keys=True,
         )
-        path = await asyncio.to_thread(_write_to_outbox, self._directory, filename, content, manifest)
+        path = await asyncio.to_thread(
+            _write_to_outbox, self._directory, filename, content, manifest
+        )
         self._written.append(path)
 
         _log.info(
@@ -364,7 +368,15 @@ class SimulatedAdapter:
     for every message.
     """
 
-    __slots__ = ("_address_rule", "_capabilities", "_channel", "_clock", "_deliver_as", "_flat_cost", "_sent")
+    __slots__ = (
+        "_address_rule",
+        "_capabilities",
+        "_channel",
+        "_clock",
+        "_deliver_as",
+        "_flat_cost",
+        "_sent",
+    )
 
     def __init__(
         self,
@@ -426,7 +438,9 @@ class SimulatedAdapter:
         )
         cost = self.cost_for(message)
 
-        address_error = self._address_rule(message.recipient.address) if self._address_rule else None
+        address_error = (
+            self._address_rule(message.recipient.address) if self._address_rule else None
+        )
         if address_error is not None:
             return _refusal(
                 message, pid, DeliveryMedium.SIMULATED, DeliveryStatus.BOUNCED, address_error, cost

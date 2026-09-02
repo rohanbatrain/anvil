@@ -124,9 +124,7 @@ class ArmSplit:
 
     def describe(self) -> str:
         """One line a human can check against the batch they thought they asked for."""
-        return " / ".join(
-            f"{arm.value} {self.share_bps(arm) / 100:.2f}%" for arm in ARM_ORDER
-        )
+        return " / ".join(f"{arm.value} {self.share_bps(arm) / 100:.2f}%" for arm in ARM_ORDER)
 
 
 #: Matches the column defaults on :class:`~anvil.db.models.experiment.RecoveryBatch`.
@@ -222,8 +220,7 @@ def assign_all(
     if len(seen) != len(ids):
         duplicates = sorted({cid for cid in ids if ids.count(cid) > 1})
         raise ValidationError(
-            "a case may appear in a batch only once; duplicates would inflate an "
-            "arm's denominator",
+            "a case may appear in a batch only once; duplicates would inflate an arm's denominator",
             duplicates=duplicates[:10],
         )
     return tuple(assign(batch_seed, case_id, split) for case_id in ids)
@@ -282,9 +279,7 @@ class RealisedSplit:
         Worth surfacing on its own: an empty control arm makes lift
         uncomputable, and an empty treatment arm makes the batch pointless.
         """
-        return any(
-            self.requested.share_bps(arm) > 0 and self.count(arm) == 0 for arm in ARM_ORDER
-        )
+        return any(self.requested.share_bps(arm) > 0 and self.count(arm) == 0 for arm in ARM_ORDER)
 
     def describe(self) -> str:
         """One line per arm, requested against realised."""

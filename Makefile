@@ -25,8 +25,17 @@ demo: db-up db-wait migrate seed ## Boot the full offline demo
 	@echo "console  http://localhost:3000"
 	@echo "api docs http://localhost:8000/docs"
 
-batch: ## Run the batch experiment and print the evidence table
-	$(PY) -m anvil.evidence.run_batch
+SEED ?= 20260902
+SIZE ?= 3000
+
+batch: ## Run the seeded batch experiment and print the evidence report
+	$(PY) -m anvil.evidence.run_batch --seed $(SEED) --size $(SIZE)
+
+batch-with-model: ## Same batch, with the LLM classifier modelled as available
+	$(PY) -m anvil.evidence.run_batch --seed $(SEED) --size $(SIZE) --with-model
+
+tour: ## A guided tour of everything the system does, in one terminal run
+	$(PY) scripts/tour.py
 
 test: ## Unit tests, no database required
 	$(PY) -m pytest tests/unit -q
@@ -49,4 +58,4 @@ down: ## Stop everything
 clean: ## Stop everything and delete the database volume
 	docker compose down -v
 
-.PHONY: help venv db-up db-wait migrate seed demo batch test test-all invariants lint fmt down clean
+.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour test test-all invariants lint fmt down clean

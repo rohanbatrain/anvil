@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, TypedDict
 
+from anvil.policy.facts import NEVER_CONTACTED_HOURS
+
 # --- What a node can hand back to the router --------------------------------
 
 Route = Literal[
@@ -155,6 +157,12 @@ class RecoveryState(TypedDict, total=False):
     budget_headroom_minor: int
     customer_concession_headroom_minor: int
     consent_state: str
+    #: Whether this merchant queues every action for a human. Declared here
+    #: rather than passed as loose context because LangGraph filters state
+    #: updates to the fields this TypedDict declares -- an undeclared key is
+    #: silently dropped, and a dropped review-first flag defaults to True,
+    #: which would quietly put every merchant into manual review.
+    merchant_review_first: bool
 
     # --- progress -------------------------------------------------------------
     status: str
@@ -228,11 +236,14 @@ def initial_state(
         "prior_concessions_minor": 0,
         "contacts_last_24h": 0,
         "contacts_last_7d": 0,
-        "hours_since_last_contact": 10_000,
+        # The policy fact catalogue caps this at one year and treats that value
+        # as "never contacted"; using its own constant keeps the two in step.
+        "hours_since_last_contact": NEVER_CONTACTED_HOURS,
         "preferred_language": "en",
         "budget_headroom_minor": 0,
         "customer_concession_headroom_minor": 0,
         "consent_state": "never_granted",
+        "merchant_review_first": True,
         "status": "open",
         "attempts_made": 0,
         "contacts_made": 0,
