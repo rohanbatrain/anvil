@@ -637,13 +637,20 @@ async def test_a_case_that_cannot_settle_is_abandoned_and_written_off() -> None:
     assert final["closure_reason"]
 
 
-async def test_the_graph_always_terminates() -> None:
-    """Whatever the world does, the case reaches a terminal state."""
+async def test_the_graph_always_reaches_a_resting_state() -> None:
+    """Whatever the world does, the graph stops somewhere defensible.
+
+    That means either a terminal status, or PENDING_RECONCILIATION -- which is
+    deliberately non-terminal, because a case whose last attempt returned no
+    answer has not finished, it is waiting on the gateway. Never an open loop
+    and never a status nobody chose.
+    """
+    resting = {*[s for s in CaseStatus if s.is_terminal], CaseStatus.PENDING_RECONCILIATION}
     for outcome in ("failed", "unknown", "settled"):
         for sent in (True, False):
             deps = make_deps(gateway=StubGateway(outcome), channels=StubChannels(sent=sent))
             final = await run(deps, make_state(), thread=f"t_{outcome}_{sent}")
-            assert CaseStatus(final["status"]).is_terminal, (outcome, sent, final["status"])
+            assert CaseStatus(final["status"]) in resting, (outcome, sent, final["status"])
 
 
 # ---------------------------------------------------------------------------
@@ -712,3 +719,27 @@ def test_closure_is_total_over_every_failure_class(failure_class: FailureClass) 
     )
     assert status.is_terminal
     assert reason
+
+
+def test_an_unresolved_attempt_is_parked_not_abandoned() -> None:
+    """We do not know whether that debit took the money. Saying so is the only
+    honest option, and writing it off would be a claim we cannot support."""
+    status, reason = decide_closure(
+        {
+            "amount_at_risk_minor": AMOUNT,
+            "amount_recovered_minor": 0,
+            "failure_class": FailureClass.ISSUER_TECHNICAL.value,
+            "status": CaseStatus.PENDING_RECONCILIATION.value,
+        }  # type: ignore[arg-type]
+    )
+    assert status is CaseStatus.PENDING_RECONCILIATION
+    assert not status.is_terminal
+    assert "idempotency key" in reason
+
+
+async def test_a_gateway_timeout_writes_nothing_off() -> None:
+    ledger = StubLedger()
+    deps = make_deps(gateway=StubGateway("unknown"), ledger=ledger)
+    final = await run(deps, make_state(), thread="t_unknown_writeoff")
+    assert final["status"] == CaseStatus.PENDING_RECONCILIATION.value
+    assert not any(kind == "write_off" for kind, _ in ledger.postings)

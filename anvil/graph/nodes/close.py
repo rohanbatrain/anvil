@@ -22,13 +22,27 @@ from anvil.graph.state import RecoveryState, note
 
 
 def decide_closure(state: RecoveryState) -> tuple[CaseStatus, str]:
-    """Work out which terminal status this case earned, and why.
+    """Work out which status this case earned, and why.
 
     Pure, so the classification of an outcome can be tested without running a
     graph, and so the same logic can label historical cases during a backfill.
+
+    Note that this does not always return a *terminal* status. A case whose last
+    gateway call timed out is parked in ``PENDING_RECONCILIATION``, which is
+    deliberately not terminal: we do not know whether that debit took the
+    customer's money, and calling it abandoned would be a claim we cannot
+    support -- as well as writing off a receivable that may already be settled.
     """
     recovered = state.get("amount_recovered_minor", 0)
     at_risk = state.get("amount_at_risk_minor", 0)
+
+    if state.get("status") == CaseStatus.PENDING_RECONCILIATION.value:
+        return (
+            CaseStatus.PENDING_RECONCILIATION,
+            "The last debit attempt returned no answer, so it is unknown whether the "
+            "customer was charged. The reconciler will resolve it against the gateway "
+            "using the original idempotency key. Nothing is written off until it does.",
+        )
 
     if recovered >= at_risk > 0:
         concession = state.get("concession_granted_minor", 0)
@@ -81,7 +95,14 @@ async def close(deps: Deps, state: RecoveryState) -> dict[str, Any]:
     status, reason = decide_closure(state)
 
     outstanding = state["amount_at_risk_minor"] - state.get("amount_recovered_minor", 0)
-    if status is not CaseStatus.RECOVERED and outstanding > 0:
+    # Never write off a receivable whose fate is unknown. An unresolved attempt
+    # may already have taken the money; writing it off would understate what the
+    # merchant is owed and would have to be reversed the moment it resolves.
+    if (
+        status is not CaseStatus.RECOVERED
+        and status is not CaseStatus.PENDING_RECONCILIATION
+        and outstanding > 0
+    ):
         await deps.ledger.write_off(
             case_id=state["case_id"],
             customer_id=state["customer_id"],
