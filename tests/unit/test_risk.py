@@ -10,9 +10,6 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
-
 from anvil.core.clock import IST
 from anvil.domain.enums import FailureClass, RetryPosture
 from anvil.domain.money import Money
@@ -39,6 +36,8 @@ from anvil.risk.scoring import (
     recovery_likelihood,
     score_case,
 )
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 AMOUNT = Money(1_499_00)
 # 18 Sep 2026 is mid-cycle, when balances are thinnest -- the hardest starting

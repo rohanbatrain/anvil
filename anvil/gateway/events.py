@@ -58,7 +58,7 @@ class WebhookEntity(StrEnum):
     SUBSCRIPTION = "subscription"
     INVOICE = "invoice"
     REFUND = "refund"
-    TOKEN = "token"
+    TOKEN = "token"  # noqa: S105 -- a Razorpay entity name, not a credential
     UNKNOWN = "unknown"
 
 

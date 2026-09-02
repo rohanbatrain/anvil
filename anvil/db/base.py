@@ -32,7 +32,7 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
-    type_annotation_map = {  # noqa: RUF012
+    type_annotation_map = {
         dict[str, Any]: JSONB,
         list[str]: JSONB,
         list[dict[str, Any]]: JSONB,

@@ -194,7 +194,7 @@ class Approval(Base, TimestampMixin, MerchantScopedMixin):
 
     version: Mapped[int] = mapped_column(nullable=False, default=1)
 
-    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+    __mapper_args__ = {"version_id_col": version}
 
     __table_args__ = (Index("ix_approvals_pending", "merchant_id", "decision", "requested_at"),)
 

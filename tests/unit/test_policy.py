@@ -10,9 +10,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
-
 from anvil.domain.enums import (
     ActionType,
     AuthorisationDecision,
@@ -47,6 +44,8 @@ from anvil.policy.evaluator import (
 from anvil.policy.expressions import MalformedExpression
 from anvil.policy.facts import PolicyFacts
 from anvil.policy.hashing import bundle_hash
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 ALWAYS: dict[str, Any] = {"op": "always"}
 NEVER: dict[str, Any] = {"op": "never"}

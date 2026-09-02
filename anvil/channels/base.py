@@ -32,6 +32,7 @@ from anvil.domain.enums import Channel, DeliveryStatus, MessagePurpose
 from anvil.domain.money import Currency, Money
 
 __all__ = [
+    "SENDABLE_STATUSES",
     "ChannelAdapter",
     "ChannelCapabilities",
     "ChannelRegistry",
@@ -39,7 +40,6 @@ __all__ = [
     "DeliveryResult",
     "OutboundMessage",
     "Recipient",
-    "SENDABLE_STATUSES",
 ]
 
 

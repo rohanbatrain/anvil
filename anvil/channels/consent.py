@@ -43,10 +43,10 @@ from anvil.db.models.comms import ConsentReceipt
 from anvil.domain.enums import ConsentState, MessagePurpose
 
 __all__ = [
+    "ERASURE_TOPIC",
     "ConsentDecision",
     "ConsentGate",
     "ConsentRepository",
-    "ERASURE_TOPIC",
     "OutboxPublisher",
     "resolve_consent",
 ]

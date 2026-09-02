@@ -43,8 +43,8 @@ from anvil.db.models.recovery import PaymentAttempt, RecoveryAction, RecoveryCas
 
 __all__ = [
     "Account",
-    "ArmAssignment",
     "Approval",
+    "ArmAssignment",
     "AuditRecord",
     "Authorisation",
     "AuthorisationUsage",

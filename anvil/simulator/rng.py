@@ -27,9 +27,6 @@ import hashlib
 import random
 from collections.abc import Sequence
 from decimal import Decimal
-from typing import TypeVar
-
-T = TypeVar("T")
 
 #: Denominator for Bernoulli draws. One part per million is finer than any
 #: probability the simulator models and keeps every comparison integral.
@@ -82,7 +79,7 @@ def uniform_between(rng: random.Random, low: Decimal, high: Decimal) -> Decimal:
     return low + (high - low) * uniform_decimal(rng)
 
 
-def weighted_choice(rng: random.Random, options: Sequence[tuple[T, int]]) -> T:
+def weighted_choice[T](rng: random.Random, options: Sequence[tuple[T, int]]) -> T:
     """Pick one option by integer weight.
 
     Integer weights rather than float probabilities: the cumulative sum is then
