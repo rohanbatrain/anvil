@@ -181,6 +181,15 @@ argmax over a tabulated function. **No model is involved.**
 Every recovery action must present a valid authorisation before it executes. This is what turns
 "bounded" from a convention into a precondition.
 
+**A note on what is and is not live.** UPI Autopay and e-NACH mandates are production rails today.
+UPI Circle and Reserve Pay exist, but NPCI's **Unified Agent Protocol -- the framework that would let a
+verified AI agent transact on them -- has not launched**: it is expected to be unveiled at Global
+Fintech Fest 2026 and still requires RBI approval. Anvil therefore does not integrate with UAP and does
+not claim to. It models delegated agent authority and Single Block Multi Debit blocks as first-class
+authorisation objects *in the shape UAP describes*, so that the day the protocol lands the registry
+gains an issuer rather than a redesign. Every statement about UAP in this repository should be read as
+describing a proposed standard.
+
 Modelled authorisation types:
 
 - **`UPI_AUTOPAY` / `ENACH` mandate** — a stored mandate with a UMN, maximum debit amount,

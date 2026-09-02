@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anvil — build board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+</head>
+<body>
+
+<style>
+  :root {
+    --canvas:#faf9f7; --surface:#ffffff; --sunken:#f2f0ec;
+    --hairline:#e4e0d9; --hairline-strong:#cfc9c0;
+    --ink:#14120f; --ink-muted:#6e6862; --ink-faint:#9a938b;
+    --accent:#c2410c; --accent-hot:#ea580c; --accent-wash:#fbede6;
+    --ok:#1f6b4d; --ok-wash:#e7f2ec;
+    --warn:#8a5a00; --warn-wash:#fbf3db;
+    --risk:#a32f2b; --risk-wash:#fbeaea;
+    --info:#1f5f8f; --info-wash:#e4f1fb;
+    --ui:'Space Grotesk','SF Pro Display',ui-sans-serif,system-ui,sans-serif;
+    --mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+    --read:'Newsreader',Georgia,serif;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --canvas:#0c0b0a; --surface:#141311; --sunken:#0f0e0d;
+      --hairline:#2a2724; --hairline-strong:#3a3632;
+      --ink:#f0ede8; --ink-muted:#9c948b; --ink-faint:#6b645d;
+      --accent:#f97316; --accent-hot:#fb923c; --accent-wash:#2a1710;
+      --ok:#4ade9b; --ok-wash:#10231a;
+      --warn:#fbbf57; --warn-wash:#241c0c;
+      --risk:#f87171; --risk-wash:#2a1414;
+      --info:#7dd3fc; --info-wash:#0f1e29;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --canvas:#0c0b0a; --surface:#141311; --sunken:#0f0e0d;
+    --hairline:#2a2724; --hairline-strong:#3a3632;
+    --ink:#f0ede8; --ink-muted:#9c948b; --ink-faint:#6b645d;
+    --accent:#f97316; --accent-hot:#fb923c; --accent-wash:#2a1710;
+    --ok:#4ade9b; --ok-wash:#10231a;
+    --warn:#fbbf57; --warn-wash:#241c0c;
+    --risk:#f87171; --risk-wash:#2a1414;
+    --info:#7dd3fc; --info-wash:#0f1e29;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--canvas); color:var(--ink);
+    font-family:var(--ui); font-size:15px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px 96px;}
+
+  .num,[data-num]{font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
+  .micro{font-size:11px; letter-spacing:.11em; text-transform:uppercase; font-weight:500; color:var(--ink-faint);}
+  h1,h2,h3{text-wrap:balance; margin:0;}
+
+  /* ---- masthead ---- */
+  header.top{padding:56px 0 28px; border-bottom:1px solid var(--hairline);}
+  .brandline{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;}
+  h1{font-size:40px; line-height:1.02; letter-spacing:-.035em; font-weight:700;}
+  .brandline .tag{font-size:13px; color:var(--ink-muted);}
+  .sub{margin-top:14px; font-family:var(--read); font-size:17px; line-height:1.6;
+       color:var(--ink-muted); max-width:64ch;}
+
+  /* ---- deadline strip ---- */
+  .deadline{
+    margin-top:26px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    padding:14px 18px; border:1px solid var(--accent); border-radius:8px;
+    background:var(--accent-wash);
+  }
+  .deadline .d-num{font-family:var(--mono); font-size:26px; font-weight:700; color:var(--accent); line-height:1;}
+  .deadline .d-body{font-size:14px; color:var(--ink); max-width:62ch;}
+  .deadline .d-body strong{font-weight:700;}
+
+  /* ---- metric row ---- */
+  .metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:1px;
+           background:var(--hairline); border:1px solid var(--hairline); border-radius:8px;
+           overflow:hidden; margin:32px 0 0;}
+  .metric{background:var(--surface); padding:16px 18px;}
+  .metric .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:24px;
+             font-weight:500; letter-spacing:-.02em; line-height:1.1;}
+  .metric .k{margin-top:5px; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint);}
+
+  /* ---- sections ---- */
+  section{margin-top:60px;}
+  .sec-head{display:flex; align-items:baseline; gap:14px; padding-bottom:12px;
+            border-bottom:1px solid var(--hairline); margin-bottom:26px; flex-wrap:wrap;}
+  .sec-head h2{font-size:21px; letter-spacing:-.018em; font-weight:500;}
+  .sec-head .note{font-size:13px; color:var(--ink-faint); margin-left:auto;}
+
+  .prose{font-family:var(--read); font-size:16px; line-height:1.65; color:var(--ink-muted); max-width:66ch;}
+  .prose strong{color:var(--ink); font-weight:500;}
+
+  /* ---- claim cards ---- */
+  .claims{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px;}
+  .claim{border:1px solid var(--hairline); border-radius:8px; background:var(--surface);
+         padding:20px; display:flex; flex-direction:column; gap:10px;}
+  .claim .stripe{height:3px; width:38px; border-radius:2px; background:var(--ok);}
+  .claim h3{font-size:15.5px; font-weight:500; letter-spacing:-.01em;}
+  .claim p{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink-muted);}
+  .evidence{margin-top:auto; padding-top:12px; border-top:1px solid var(--hairline);
+            font-family:var(--mono); font-size:11.5px; color:var(--ok); line-height:1.5;}
+
+  /* ---- figure ---- */
+  figure{margin:0;}
+  .figbox{border:1px solid var(--hairline); border-radius:8px; background:var(--surface);
+          padding:22px 18px; overflow-x:auto;}
+  figcaption{margin-top:12px; font-size:13px; color:var(--ink-faint); max-width:74ch; line-height:1.6;}
+  svg{max-width:100%; height:auto; display:block; margin:0 auto;}
+
+  /* ---- tables ---- */
+  .tablebox{border:1px solid var(--hairline); border-radius:8px; background:var(--surface); overflow-x:auto;}
+  table{width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px;}
+  th{text-align:left; padding:11px 14px; border-bottom:1px solid var(--hairline);
+     font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; white-space:nowrap;}
+  td{padding:10px 14px; border-bottom:1px solid var(--hairline); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  td.r,th.r{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  td.m{font-family:var(--mono); font-size:12.5px;}
+  .why{color:var(--ink-faint); font-size:12.5px;}
+
+  .pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:10.5px;
+        letter-spacing:.07em; text-transform:uppercase; font-weight:500; white-space:nowrap;}
+  .p-ok{background:var(--ok-wash); color:var(--ok);}
+  .p-warn{background:var(--warn-wash); color:var(--warn);}
+  .p-risk{background:var(--risk-wash); color:var(--risk);}
+  .p-info{background:var(--info-wash); color:var(--info);}
+  .p-acc{background:var(--accent-wash); color:var(--accent);}
+
+  /* ---- command list ---- */
+  .cmds{display:flex; flex-direction:column; gap:1px; background:var(--hairline);
+        border:1px solid var(--hairline); border-radius:8px; overflow:hidden;}
+  .cmd{background:var(--surface); padding:15px 18px; display:grid;
+       grid-template-columns:minmax(240px,340px) 1fr; gap:18px; align-items:baseline;}
+  .cmd code{font-family:var(--mono); font-size:12.5px; color:var(--accent); word-break:break-all;}
+  .cmd span{font-size:13.5px; color:var(--ink-muted);}
+  @media (max-width:660px){ .cmd{grid-template-columns:1fr; gap:6px;} }
+
+  /* ---- plan ---- */
+  .plan{display:flex; flex-direction:column; gap:1px; background:var(--hairline);
+        border:1px solid var(--hairline); border-radius:8px; overflow:hidden;}
+  .step{background:var(--surface); padding:16px 18px; display:grid;
+        grid-template-columns:34px 1fr auto; gap:16px; align-items:start;}
+  .step .ord{font-family:var(--mono); font-size:12px; color:var(--ink-faint); padding-top:2px;}
+  .step h3{font-size:14.5px; font-weight:500; margin-bottom:4px;}
+  .step p{margin:0; font-size:13px; color:var(--ink-muted); line-height:1.55; max-width:70ch;}
+  @media (max-width:660px){ .step{grid-template-columns:24px 1fr; } .step .pill{grid-column:2;} }
+
+  footer{margin-top:72px; padding-top:22px; border-top:1px solid var(--hairline);
+         font-size:12.5px; color:var(--ink-faint); display:flex; gap:18px; flex-wrap:wrap;}
+  a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px;}
+  a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px;}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="brandline">
+    <h1>Anvil</h1>
+    <span class="tag">revenue recovery control plane &middot; Razorpay AI Buildathon 2026 &middot; Track 03</span>
+  </div>
+  <p class="sub">An agent that wins back failed recurring-payment debits. Vulcan is Razorpay's forge;
+     Anvil is where at-risk revenue gets hammered back into settled revenue.</p>
+
+  <div class="deadline">
+    <span class="d-num">3</span>
+    <span class="d-body"><strong>days until the submission deadline &mdash; 5 September 2026.</strong>
+      Required: a public repo, a README with setup instructions, a 5-minute pitch video, and
+      architecture docs. The engine is built and tested; <strong>none of those four artifacts exist yet.</strong></span>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="v">17,049</div><div class="k">lines of Python</div></div>
+    <div class="metric"><div class="v">145</div><div class="k">tests passing</div></div>
+    <div class="metric"><div class="v">33</div><div class="k">tables migrated</div></div>
+    <div class="metric"><div class="v">76</div><div class="k">decline codes</div></div>
+    <div class="metric"><div class="v">27</div><div class="k">policy rules</div></div>
+    <div class="metric"><div class="v">0</div><div class="k">lint errors</div></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>Three claims, and the evidence for each</h2>
+    <span class="note">every number below was produced by running the code</span>
+  </div>
+  <div class="claims">
+
+    <div class="claim">
+      <div class="stripe"></div>
+      <h3>The ledger physically refuses to be edited</h3>
+      <p>Balances are never stored &mdash; they are summed from append-only entries. Postgres triggers
+         reject <span class="num">UPDATE</span> and <span class="num">DELETE</span> on the ledger tables.
+         Corrections require a mirrored reversal that points back at the original.</p>
+      <div class="evidence">Verified from a superuser psql session:<br>
+        inflate &rarr; refused &middot; delete &rarr; refused &middot; rewrite narration &rarr; refused</div>
+    </div>
+
+    <div class="claim">
+      <div class="stripe"></div>
+      <h3>Retry timing is solved, not guessed</h3>
+      <p>A dynamic program over the issuer hazard curve, reduced to a suffix maximum so it runs in
+         O(attempts &times; horizon). No model is involved and there is no escalation path to one &mdash;
+         asking an LLM "when should I retry?" is the mistake this track penalises.</p>
+      <div class="evidence">From one mid-cycle failure:<br>
+        insufficient funds &rarr; waits 11d 23h to payday<br>
+        technical decline &rarr; retries in 6h</div>
+    </div>
+
+    <div class="claim">
+      <div class="stripe"></div>
+      <h3>It keeps working when the model fails</h3>
+      <p>With the model entirely unavailable the case still classifies, plans, and recovers in full &mdash;
+         on a deterministic fallback that never offers a concession, because pricing a concession was
+         exactly the judgement the model was there for.</p>
+      <div class="evidence">39 graph tests over stubbed ports:<br>
+        model down &rarr; recovered &middot; out-of-bounds proposal &rarr; refused &amp; counted</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>How an action reaches execution</h2>
+    <span class="note">13 nodes &middot; 12 dependency ports</span>
+  </div>
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 920 300" role="img"
+           aria-label="The recovery graph. A planned action passes authorisation, then policy, before it can execute. Authorisation can divert to a step-up pause that waits for the customer to re-authenticate; policy can divert to an approval pause that waits for a merchant operator. Both paths rejoin before execution. After execution the case is observed and either re-planned or closed.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+          </marker>
+          <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path>
+          </marker>
+        </defs>
+
+        <g font-family="Space Grotesk, sans-serif" font-size="12.5" fill="currentColor">
+
+          <!-- interrupt lane label -->
+          <text x="14" y="26" font-size="10.5" letter-spacing="1.4" fill="var(--accent)">PAUSES FOR A HUMAN</text>
+
+          <!-- interrupt boxes -->
+          <rect x="196" y="42" width="128" height="42" rx="6" fill="none" stroke="var(--accent)" stroke-width="1.5"></rect>
+          <text x="260" y="60" text-anchor="middle" fill="var(--accent)">step&#8209;up</text>
+          <text x="260" y="75" text-anchor="middle" font-size="10" fill="var(--accent)">customer re-auths</text>
+
+          <rect x="396" y="42" width="128" height="42" rx="6" fill="none" stroke="var(--accent)" stroke-width="1.5"></rect>
+          <text x="460" y="60" text-anchor="middle" fill="var(--accent)">approval</text>
+          <text x="460" y="75" text-anchor="middle" font-size="10" fill="var(--accent)">operator decides</text>
+
+          <!-- main row boxes -->
+          <rect x="14"  y="160" width="104" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+          <text x="66"  y="186" text-anchor="middle">plan</text>
+
+          <rect x="170" y="160" width="112" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+          <text x="226" y="186" text-anchor="middle">authorise</text>
+
+          <rect x="370" y="160" width="112" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+          <text x="426" y="186" text-anchor="middle">policy</text>
+
+          <rect x="570" y="160" width="104" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+          <text x="622" y="186" text-anchor="middle">execute</text>
+
+          <rect x="726" y="160" width="96" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+          <text x="774" y="186" text-anchor="middle">observe</text>
+
+          <rect x="862" y="160" width="44" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+          <text x="884" y="186" text-anchor="middle" font-size="11">close</text>
+
+          <!-- main path -->
+          <line x1="118" y1="181" x2="164" y2="181" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"></line>
+          <line x1="282" y1="181" x2="364" y2="181" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"></line>
+          <text x="323" y="174" text-anchor="middle" font-size="10" fill="currentColor">authorised</text>
+          <line x1="482" y1="181" x2="564" y2="181" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"></line>
+          <text x="523" y="174" text-anchor="middle" font-size="10" fill="currentColor">allow</text>
+          <line x1="674" y1="181" x2="720" y2="181" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"></line>
+          <line x1="822" y1="181" x2="856" y2="181" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar)"></line>
+
+          <!-- step-up detour -->
+          <path d="M226,160 L226,105 L226,90" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ar-a)"></path>
+          <text x="234" y="128" font-size="10" fill="var(--accent)">exceeds delegated cap</text>
+          <path d="M324,63 L352,63 L352,155 L400,155" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ar-a)"></path>
+
+          <!-- approval detour -->
+          <path d="M426,160 L426,105 L426,90" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ar-a)"></path>
+          <text x="434" y="128" font-size="10" fill="var(--accent)">requires approval</text>
+          <path d="M524,63 L552,63 L552,155 L600,155" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ar-a)"></path>
+
+          <!-- re-plan loop -->
+          <path d="M774,202 L774,258 L66,258 L66,208" fill="none" stroke="currentColor" stroke-width="1.1"
+                stroke-dasharray="4 4" marker-end="url(#ar)"></path>
+          <text x="420" y="273" text-anchor="middle" font-size="10" fill="var(--ink-faint)">re-plan with what we now know &mdash; bounded, and the policy engine owns the stopping rules</text>
+
+          <!-- gate emphasis -->
+          <text x="226" y="228" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--ink-faint)">FAILS CLOSED</text>
+          <text x="426" y="228" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--ink-faint)">NO MATCH DENIES</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>There is no edge into <span class="num">execute</span> that skips
+      <span class="num">authorise</span> and then <span class="num">policy</span>. Authorisation is
+      structural and fails closed; policy denies anything no rule permits, so a gap in the merchant's
+      policy blocks an action rather than allowing it. The two orange detours are real pauses &mdash; the
+      checkpoint is committed before the node yields, so the process can be killed mid-pause and the case
+      resumes exactly there.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What the scheduler decides</h2>
+    <span class="note">&#8377;1,499.00 debit, failed 18 Sep &mdash; mid-cycle, balances at their thinnest</span>
+  </div>
+  <div class="tablebox">
+    <table>
+      <thead><tr>
+        <th>Failure class</th><th class="r">Next attempt</th><th class="r">P(settle)</th>
+        <th class="r">Expected value</th><th>Why</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="m">issuer_technical</td><td class="r">in 6h</td><td class="r">76.4%</td>
+            <td class="r">&#8377;1,405.51</td>
+            <td class="why">The customer could always pay; the rail could not take the money. Cheapest recovery there is.</td></tr>
+        <tr><td class="m">insufficient_funds</td><td class="r">in 11d 23h</td><td class="r">52.8%</td>
+            <td class="r">&#8377;1,281.48</td>
+            <td class="why">Waits for the salary-credit peak on the 30th. A greedy scheduler retries tomorrow and fails.</td></tr>
+        <tr><td class="m">limit_exceeded</td><td class="r">in 2d</td><td class="r">49.5%</td>
+            <td class="r">&#8377;1,142.73</td>
+            <td class="why">Per-period caps reset on a boundary. Waiting for it is the whole strategy.</td></tr>
+        <tr><td class="m">instrument_expired</td><td class="r" colspan="3"><span class="pill p-risk">refused</span></td>
+            <td class="why">The card will be just as expired tomorrow. Every attempt spent here is waste.</td></tr>
+        <tr><td class="m">risk_declined</td><td class="r" colspan="3"><span class="pill p-risk">refused</span></td>
+            <td class="why">Retrying is actively harmful &mdash; repeated attempts degrade the merchant's issuer risk score.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="prose" style="margin-top:16px;">The spread between the best and worst hour for a balance
+     failure is roughly <strong>seven-fold</strong>. That gap is the entire product: the same retry,
+     placed correctly, is worth seven times as much.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Module status</h2>
+    <span class="note">7 complete &middot; 6 partial &middot; 4 not started</span>
+  </div>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Module</th><th>State</th><th class="r">Lines</th><th>What it holds</th></tr></thead>
+      <tbody>
+        <tr><td class="m">domain</td><td><span class="pill p-ok">complete</span></td><td class="r">1,124</td>
+            <td class="why">Money as integer paise, the closed enums, 76 decline codes, the retry curves</td></tr>
+        <tr><td class="m">core</td><td><span class="pill p-ok">complete</span></td><td class="r">612</td>
+            <td class="why">Config, injectable clock, prefixed ULIDs, error taxonomy, logs that redact on write</td></tr>
+        <tr><td class="m">db</td><td><span class="pill p-ok">complete</span></td><td class="r">1,991</td>
+            <td class="why">33 tables, migrated to Postgres 16, append-only triggers installed</td></tr>
+        <tr><td class="m">ledger</td><td><span class="pill p-ok">complete</span></td><td class="r">1,752</td>
+            <td class="why">Posting, derived balances, budget reservations under a row lock, immutability</td></tr>
+        <tr><td class="m">risk</td><td><span class="pill p-ok">complete</span></td><td class="r">1,701</td>
+            <td class="why">The DP scheduler, scoring, calibration, at-risk detection</td></tr>
+        <tr><td class="m">policy</td><td><span class="pill p-ok">complete</span></td><td class="r">2,247</td>
+            <td class="why">Evaluator, 27-rule default bundle, content hashing, the natural-language compiler</td></tr>
+        <tr><td class="m">graph</td><td><span class="pill p-ok">complete</span></td><td class="r">2,336</td>
+            <td class="why">13 nodes, two durable interrupts, twelve dependency ports</td></tr>
+        <tr><td class="m">channels</td><td><span class="pill p-warn">partial</span></td><td class="r">1,880</td>
+            <td class="why">Consent gate, frequency caps, adapters done &mdash; dispatch orchestration missing</td></tr>
+        <tr><td class="m">gateway</td><td><span class="pill p-warn">partial</span></td><td class="r">1,364</td>
+            <td class="why">Webhook verification and event parsing done &mdash; REST client and reconciler missing</td></tr>
+        <tr><td class="m">mandates</td><td><span class="pill p-warn">partial</span></td><td class="r">692</td>
+            <td class="why">The authorisation check itself is done &mdash; registry, consumption and step-up missing</td></tr>
+        <tr><td class="m">simulator</td><td><span class="pill p-warn">partial</span></td><td class="r">536</td>
+            <td class="why">Seeded RNG and the customer model done &mdash; issuer, population and world missing</td></tr>
+        <tr><td class="m">llm</td><td><span class="pill p-warn">partial</span></td><td class="r">476</td>
+            <td class="why">PII redaction with Luhn validation done &mdash; schemas, client and fixtures missing</td></tr>
+        <tr><td class="m">evidence</td><td><span class="pill p-warn">partial</span></td><td class="r">317</td>
+            <td class="why">Arm assignment done &mdash; the lift statistics and batch report missing</td></tr>
+        <tr><td class="m">audit</td><td><span class="pill p-risk">not started</span></td><td class="r">0</td>
+            <td class="why">The redaction gate, event log, outbox relay and time-travel replay</td></tr>
+        <tr><td class="m">api</td><td><span class="pill p-risk">not started</span></td><td class="r">0</td>
+            <td class="why">FastAPI routers for the console and the webhook endpoint</td></tr>
+        <tr><td class="m">console</td><td><span class="pill p-risk">not started</span></td><td class="r">0</td>
+            <td class="why">Approval inbox, recovery cockpit, policy studio, audit replay</td></tr>
+        <tr><td class="m">README</td><td><span class="pill p-risk">not started</span></td><td class="r">0</td>
+            <td class="why">The first thing a judge reads, and a required submission artifact</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>See it for yourself</h2></div>
+  <div class="cmds">
+    <div class="cmd"><code>.venv/bin/python scripts/tour.py</code>
+      <span>The guided tour. Runs the whole system in one command &mdash; no credentials, no database,
+            no network. Every number it prints is computed live.</span></div>
+    <div class="cmd"><code>.venv/bin/python -m pytest tests/unit -q</code>
+      <span>All 145 tests. The ones worth reading are the failure paths in
+            <span class="num">test_graph.py</span>.</span></div>
+    <div class="cmd"><code>.venv/bin/python -m pytest -m invariant -q</code>
+      <span>Only the tests that enforce a numbered financial invariant from the architecture doc.</span></div>
+    <div class="cmd"><code>open docs/ARCHITECTURE.md</code>
+      <span>The thesis, the ten invariants, the decline taxonomy, and an explicit account of where
+            AI is <em>not</em> used and why.</span></div>
+    <div class="cmd"><code>open docs/DESIGN.md</code>
+      <span>The console design system &mdash; written, but the console itself is not built yet.</span></div>
+    <div class="cmd"><code>git log --oneline</code>
+      <span>Seven commits, each one a complete subsystem with its own test suite.</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What I would do with the three days</h2>
+    <span class="note">ordered by what changes a judge's score</span>
+  </div>
+  <div class="plan">
+
+    <div class="step"><span class="ord">01</span>
+      <div><h3>README and architecture diagrams</h3>
+        <p>A required artifact and the highest-leverage hour in the whole project. Problem statement,
+           the Mermaid graph diagram, reproducible setup, and an honest limitations section &mdash; this
+           track explicitly rewards documented gaps over hidden ones.</p></div>
+      <span class="pill p-acc">required</span></div>
+
+    <div class="step"><span class="ord">02</span>
+      <div><h3>The batch experiment</h3>
+        <p>The track's stated bar is <em>measured money recovered across batches</em>. That needs the
+           simulator's issuer model, the lift statistics, and a <span class="num">make batch</span> that
+           prints a report with confidence intervals &mdash; including saying plainly when a result is not
+           significant. Without this the submission misses its own track's headline requirement.</p></div>
+      <span class="pill p-acc">required</span></div>
+
+    <div class="step"><span class="ord">03</span>
+      <div><h3>Wire the real path end to end</h3>
+        <p>Finish mandates, the LLM client with offline fixtures, and channel dispatch, then swap the
+           graph's stub ports for the real implementations. The graph is already written against
+           Protocols, so this is wiring rather than design.</p></div>
+      <span class="pill p-warn">high value</span></div>
+
+    <div class="step"><span class="ord">04</span>
+      <div><h3>One screen, not four</h3>
+        <p>The approval inbox is the only console screen that proves something no test can &mdash; that a
+           human really is in the loop. Cut the cockpit, policy studio and replay viewer to static
+           screenshots in the README if time is short.</p></div>
+      <span class="pill p-warn">high value</span></div>
+
+    <div class="step"><span class="ord">05</span>
+      <div><h3>The pitch video</h3>
+        <p>Five minutes, and the back half should be failure: the model going down mid-demo and recovery
+           continuing, an out-of-bounds proposal being refused, a gateway timeout parking a case instead
+           of guessing. That is the part most submissions skip and the part this rubric names.</p></div>
+      <span class="pill p-acc">required</span></div>
+
+    <div class="step"><span class="ord">06</span>
+      <div><h3>Make Docker actually work</h3>
+        <p>Local development moved to a native Postgres after Docker wedged. The compose file is written
+           but untested, and judges will run it. Verifying it is a small job that removes a large risk.</p></div>
+      <span class="pill p-info">risk</span></div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Two things worth being careful about</h2></div>
+  <p class="prose">
+    <strong>UAP has not launched.</strong> NPCI's Unified Agent Protocol is expected to be unveiled at
+    Global Fintech Fest 2026 and still needs RBI approval. Anvil models delegated agent authority and
+    Reserve Pay blocks as first-class authorisation objects, which is a genuine strength &mdash; but the
+    documentation must say <em>proposed</em>. Claiming to integrate with something that does not yet
+    exist is the kind of error a Razorpay panel will catch instantly.
+  </p>
+  <p class="prose" style="margin-top:14px;">
+    <strong>Depth is bought with breadth.</strong> Seven modules are genuinely finished to a standard
+    that would survive code review at a payments company. Four have not been started. The honest framing
+    for the pitch is that this is a deep vertical slice with a documented edge, not a complete platform &mdash;
+    and the rubric prefers exactly that, provided the gaps are named rather than hidden.
+  </p>
+</section>
+
+<footer>
+  <span>Anvil &middot; Razorpay AI Buildathon 2026 &middot; Track 03: AI Revenue Recovery</span>
+  <span class="num">145 tests &middot; 17,049 lines &middot; 0 lint errors</span>
+</footer>
+
+</div>
+</body>
+</html>
