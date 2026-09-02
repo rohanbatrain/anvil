@@ -60,9 +60,7 @@ def coerce_minor(value: object, *, field_name: str = "amount") -> int:
     )
 
 
-def money_from_gateway(
-    amount: object, currency: object, *, field_name: str = "amount"
-) -> Money:
+def money_from_gateway(amount: object, currency: object, *, field_name: str = "amount") -> Money:
     """Build :class:`Money` from a gateway amount/currency pair."""
     try:
         code = Currency(str(currency).upper())

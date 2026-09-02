@@ -40,9 +40,7 @@ EQUALITY_OPS: Final[frozenset[str]] = frozenset({"eq", "ne"})
 ORDERED_OPS: Final[frozenset[str]] = frozenset({"lt", "lte", "gt", "gte"})
 MEMBERSHIP_OPS: Final[frozenset[str]] = frozenset({"in", "not_in"})
 RANGE_OPS: Final[frozenset[str]] = frozenset({"between"})
-COMPARISON_OPS: Final[frozenset[str]] = (
-    EQUALITY_OPS | ORDERED_OPS | MEMBERSHIP_OPS | RANGE_OPS
-)
+COMPARISON_OPS: Final[frozenset[str]] = EQUALITY_OPS | ORDERED_OPS | MEMBERSHIP_OPS | RANGE_OPS
 ALL_OPS: Final[frozenset[str]] = LOGICAL_OPS | CONSTANT_OPS | COMPARISON_OPS
 
 #: Structural budgets. A rule tree is a human-scale artifact; anything past
@@ -101,9 +99,7 @@ def _validate(node: object, path: str, depth: int, budget: _Budget) -> None:
     if depth > MAX_DEPTH:
         raise MalformedExpression(f"expression nests deeper than {MAX_DEPTH}", path=path)
     if not isinstance(node, Mapping):
-        raise MalformedExpression(
-            f"expected an object, got {type(node).__name__}", path=path
-        )
+        raise MalformedExpression(f"expected an object, got {type(node).__name__}", path=path)
 
     keys = set(node.keys())
     if not all(isinstance(key, str) for key in keys):
@@ -152,18 +148,13 @@ def _spec_for(field: object, path: str) -> FactSpec:
 
 
 def _validate_operand(op: str, spec: FactSpec, value: object, path: str) -> None:
-    if op in ORDERED_OPS or op in RANGE_OPS:
-        if not spec.is_ordered:
-            raise MalformedExpression(
-                f"{op!r} needs an integer fact; {spec.name} is {spec.kind.value}", path=path
-            )
+    if (op in ORDERED_OPS or op in RANGE_OPS) and not spec.is_ordered:
+        raise MalformedExpression(
+            f"{op!r} needs an integer fact; {spec.name} is {spec.kind.value}", path=path
+        )
     if op in RANGE_OPS:
         bounds = value
-        if (
-            not isinstance(bounds, Sequence)
-            or isinstance(bounds, str | bytes)
-            or len(bounds) != 2
-        ):
+        if not isinstance(bounds, Sequence) or isinstance(bounds, str | bytes) or len(bounds) != 2:
             raise MalformedExpression("'between' takes [low, high]", path=path)
         low, high = bounds[0], bounds[1]
         _validate_literal(spec, low, f"{path}[0]")
@@ -202,13 +193,9 @@ def _validate_literal(spec: FactSpec, value: object, path: str) -> None:
         if isinstance(value, bool) or not isinstance(value, int):
             raise MalformedExpression(f"{spec.name} compares against an integer", path=path)
         if spec.minimum is not None and value < spec.minimum:
-            raise MalformedExpression(
-                f"{spec.name} is never below {spec.minimum}", path=path
-            )
+            raise MalformedExpression(f"{spec.name} is never below {spec.minimum}", path=path)
         if spec.maximum is not None and value > spec.maximum:
-            raise MalformedExpression(
-                f"{spec.name} is never above {spec.maximum}", path=path
-            )
+            raise MalformedExpression(f"{spec.name} is never above {spec.maximum}", path=path)
         return
     if not isinstance(value, str):
         raise MalformedExpression(f"{spec.name} compares against a string", path=path)

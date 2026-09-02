@@ -91,9 +91,13 @@ class Settings(BaseSettings):
     @property
     def sync_database_url(self) -> str:
         """psycopg URL for Alembic and the LangGraph Postgres checkpointer."""
-        return self.database_url.replace("+asyncpg", "").replace(
-            "postgresql://", "postgresql+psycopg://", 1
-        ) if "+asyncpg" in self.database_url else self.database_url
+        return (
+            self.database_url.replace("+asyncpg", "").replace(
+                "postgresql://", "postgresql+psycopg://", 1
+            )
+            if "+asyncpg" in self.database_url
+            else self.database_url
+        )
 
     @property
     def raw_database_url(self) -> str:

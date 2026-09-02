@@ -48,11 +48,11 @@ from anvil.domain.enums import RunMode
 class PiiKind(StrEnum):
     """What a detected span is. The token prefix, so it is visible in prompts."""
 
-    PAN = "PAN"                  # card primary account number
-    VPA = "VPA"                  # UPI virtual payment address
+    PAN = "PAN"  # card primary account number
+    VPA = "VPA"  # UPI virtual payment address
     EMAIL = "EMAIL"
     PHONE = "PHONE"
-    ACCOUNT = "ACCOUNT"          # bank account number
+    ACCOUNT = "ACCOUNT"  # bank account number
     IFSC = "IFSC"
     AADHAAR = "AADHAAR"
     NAME = "NAME"
@@ -78,9 +78,7 @@ _PRIORITY: Final[dict[PiiKind, int]] = {
 #: grouped rendering. Grouping is restricted to four-digit blocks so that two
 #: adjacent unrelated numbers ("20260902 20260903") cannot accidentally form a
 #: nineteen-digit candidate that then passes Luhn one time in ten.
-_PAN_RE: Final = re.compile(
-    r"(?<![\d.])(?:\d{13,19}|\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,7})(?!\.?\d)"
-)
+_PAN_RE: Final = re.compile(r"(?<![\d.])(?:\d{13,19}|\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,7})(?!\.?\d)")
 
 #: Aadhaar is twelve digits and never starts with 0 or 1.
 _AADHAAR_RE: Final = re.compile(r"(?<![\d.])[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}(?!\.?\d)")
@@ -232,11 +230,15 @@ class Redactor:
     def token_for(self, kind: PiiKind, value: str) -> str:
         """The stable pseudonym for one value, registering it for rehydration."""
         canonical = _canonical_value(kind, value)
-        digest = hashlib.blake2b(
-            f"{kind.value}\x1f{canonical}".encode(),
-            key=self._salt.encode(),
-            digest_size=4,
-        ).hexdigest().upper()
+        digest = (
+            hashlib.blake2b(
+                f"{kind.value}\x1f{canonical}".encode(),
+                key=self._salt.encode(),
+                digest_size=4,
+            )
+            .hexdigest()
+            .upper()
+        )
         token = f"[[{kind.value}_{digest}]]"
         self._reverse.setdefault(token, value)
         return token
@@ -260,8 +262,7 @@ class Redactor:
         string.
         """
         return [
-            PiiFinding(c.kind, c.start, c.end, c.value)
-            for c in _resolve(_candidates(text, names))
+            PiiFinding(c.kind, c.start, c.end, c.value) for c in _resolve(_candidates(text, names))
         ]
 
     def redact(self, text: str, *, names: Sequence[str] = ()) -> RedactionResult:

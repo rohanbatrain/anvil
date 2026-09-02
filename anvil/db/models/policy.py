@@ -196,9 +196,7 @@ class Approval(Base, TimestampMixin, MerchantScopedMixin):
 
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
 
-    __table_args__ = (
-        Index("ix_approvals_pending", "merchant_id", "decision", "requested_at"),
-    )
+    __table_args__ = (Index("ix_approvals_pending", "merchant_id", "decision", "requested_at"),)
 
     @property
     def is_pending(self) -> bool:

@@ -76,7 +76,7 @@ class Money:
         """
         if isinstance(major, float):
             raise TypeError("refusing to build Money from float; pass str, int or Decimal")
-        scaled = Decimal(major) * (10 ** currency.exponent)
+        scaled = Decimal(major) * (10**currency.exponent)
         quantised = scaled.quantize(Decimal(1), rounding=ROUND_HALF_EVEN)
         return cls(int(quantised), currency)
 
@@ -98,10 +98,12 @@ class Money:
     def format(self, *, with_symbol: bool = True, grouping: bool = True) -> str:
         """Indian digit grouping (``12,34,567.89``) for INR, Western for others."""
         sign = "-" if self.minor < 0 else ""
-        units, sub = divmod(abs(self.minor), 10 ** self.currency.exponent)
+        units, sub = divmod(abs(self.minor), 10**self.currency.exponent)
         digits = str(units)
         if grouping:
-            digits = _group_indian(digits) if self.currency is Currency.INR else _group_western(digits)
+            digits = (
+                _group_indian(digits) if self.currency is Currency.INR else _group_western(digits)
+            )
         body = f"{digits}.{sub:0{self.currency.exponent}d}" if self.currency.exponent else digits
         prefix = self.currency.symbol if with_symbol else ""
         return f"{sign}{prefix}{body}"

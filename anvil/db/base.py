@@ -89,7 +89,9 @@ def money_minor() -> Mapped[int]:
 
 
 def currency_col(default: Currency = Currency.INR) -> Mapped[Currency]:
-    return mapped_column(CurrencyType, nullable=False, default=default, server_default=default.value)
+    return mapped_column(
+        CurrencyType, nullable=False, default=default, server_default=default.value
+    )
 
 
 class TimestampMixin:

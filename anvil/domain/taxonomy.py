@@ -30,63 +30,63 @@ from anvil.domain.enums import FailureClass, RetryPosture
 # all describe the same handful of underlying realities in different dialects.
 
 _UPI_CODES: dict[str, FailureClass] = {
-    "U30": FailureClass.ISSUER_TECHNICAL,      # debit failure at remitter bank
-    "U31": FailureClass.ISSUER_TECHNICAL,      # credit failure at beneficiary
-    "U16": FailureClass.RISK_DECLINED,         # risk threshold exceeded
-    "U28": FailureClass.ISSUER_TECHNICAL,      # remitter bank unavailable
-    "U54": FailureClass.ISSUER_TECHNICAL,      # transaction timed out
-    "U67": FailureClass.ISSUER_TECHNICAL,      # debit timeout
-    "U69": FailureClass.MANDATE_REVOKED,       # mandate not found / deregistered
-    "Z9": FailureClass.INSUFFICIENT_FUNDS,     # insufficient balance
-    "Z6": FailureClass.LIMIT_EXCEEDED,         # number of PIN tries exceeded
+    "U30": FailureClass.ISSUER_TECHNICAL,  # debit failure at remitter bank
+    "U31": FailureClass.ISSUER_TECHNICAL,  # credit failure at beneficiary
+    "U16": FailureClass.RISK_DECLINED,  # risk threshold exceeded
+    "U28": FailureClass.ISSUER_TECHNICAL,  # remitter bank unavailable
+    "U54": FailureClass.ISSUER_TECHNICAL,  # transaction timed out
+    "U67": FailureClass.ISSUER_TECHNICAL,  # debit timeout
+    "U69": FailureClass.MANDATE_REVOKED,  # mandate not found / deregistered
+    "Z9": FailureClass.INSUFFICIENT_FUNDS,  # insufficient balance
+    "Z6": FailureClass.LIMIT_EXCEEDED,  # number of PIN tries exceeded
     "Z7": FailureClass.RISK_DECLINED,
-    "ZA": FailureClass.RISK_DECLINED,          # transaction declined by customer
-    "ZM": FailureClass.AUTH_REQUIRED,          # invalid / required MPIN
-    "XH": FailureClass.ACCOUNT_CLOSED,         # account does not exist
-    "XD": FailureClass.ACCOUNT_CLOSED,         # invalid account
-    "XF": FailureClass.ACCOUNT_CLOSED,         # format error / account invalid
+    "ZA": FailureClass.RISK_DECLINED,  # transaction declined by customer
+    "ZM": FailureClass.AUTH_REQUIRED,  # invalid / required MPIN
+    "XH": FailureClass.ACCOUNT_CLOSED,  # account does not exist
+    "XD": FailureClass.ACCOUNT_CLOSED,  # invalid account
+    "XF": FailureClass.ACCOUNT_CLOSED,  # format error / account invalid
     "XT": FailureClass.ISSUER_TECHNICAL,
-    "YA": FailureClass.ACCOUNT_CLOSED,         # account blocked
+    "YA": FailureClass.ACCOUNT_CLOSED,  # account blocked
     "YB": FailureClass.ISSUER_TECHNICAL,
-    "B3": FailureClass.LIMIT_EXCEEDED,         # per-transaction limit
-    "AM": FailureClass.AUTH_REQUIRED,          # MPIN not set
+    "B3": FailureClass.LIMIT_EXCEEDED,  # per-transaction limit
+    "AM": FailureClass.AUTH_REQUIRED,  # MPIN not set
 }
 
 _NACH_RETURN_CODES: dict[str, FailureClass] = {
-    "01": FailureClass.INSUFFICIENT_FUNDS,     # funds insufficient
+    "01": FailureClass.INSUFFICIENT_FUNDS,  # funds insufficient
     "02": FailureClass.ACCOUNT_CLOSED,
-    "03": FailureClass.ACCOUNT_CLOSED,         # no such account
-    "05": FailureClass.MANDATE_REVOKED,        # not arranged for / mandate cancelled
-    "08": FailureClass.MANDATE_PAUSED,         # payment stopped by drawer
-    "09": FailureClass.ACCOUNT_CLOSED,         # account frozen
-    "10": FailureClass.MANDATE_REVOKED,        # mandate not registered
-    "11": FailureClass.ACCOUNT_CLOSED,         # account blocked / dormant
-    "12": FailureClass.LIMIT_EXCEEDED,         # amount exceeds mandate limit
-    "13": FailureClass.MANDATE_REVOKED,        # mandate expired
-    "14": FailureClass.ISSUER_TECHNICAL,       # technical reasons
-    "22": FailureClass.MANDATE_PAUSED,         # mandate on hold
+    "03": FailureClass.ACCOUNT_CLOSED,  # no such account
+    "05": FailureClass.MANDATE_REVOKED,  # not arranged for / mandate cancelled
+    "08": FailureClass.MANDATE_PAUSED,  # payment stopped by drawer
+    "09": FailureClass.ACCOUNT_CLOSED,  # account frozen
+    "10": FailureClass.MANDATE_REVOKED,  # mandate not registered
+    "11": FailureClass.ACCOUNT_CLOSED,  # account blocked / dormant
+    "12": FailureClass.LIMIT_EXCEEDED,  # amount exceeds mandate limit
+    "13": FailureClass.MANDATE_REVOKED,  # mandate expired
+    "14": FailureClass.ISSUER_TECHNICAL,  # technical reasons
+    "22": FailureClass.MANDATE_PAUSED,  # mandate on hold
     "26": FailureClass.ISSUER_TECHNICAL,
 }
 
 _CARD_ISO_CODES: dict[str, FailureClass] = {
-    "04": FailureClass.ACCOUNT_CLOSED,         # pick up card
-    "05": FailureClass.RISK_DECLINED,          # do not honour
-    "12": FailureClass.RISK_DECLINED,          # invalid transaction
-    "14": FailureClass.ACCOUNT_CLOSED,         # invalid card number
-    "41": FailureClass.ACCOUNT_CLOSED,         # lost card
-    "43": FailureClass.ACCOUNT_CLOSED,         # stolen card
+    "04": FailureClass.ACCOUNT_CLOSED,  # pick up card
+    "05": FailureClass.RISK_DECLINED,  # do not honour
+    "12": FailureClass.RISK_DECLINED,  # invalid transaction
+    "14": FailureClass.ACCOUNT_CLOSED,  # invalid card number
+    "41": FailureClass.ACCOUNT_CLOSED,  # lost card
+    "43": FailureClass.ACCOUNT_CLOSED,  # stolen card
     "51": FailureClass.INSUFFICIENT_FUNDS,
     "54": FailureClass.INSTRUMENT_EXPIRED,
-    "57": FailureClass.RISK_DECLINED,          # transaction not permitted
-    "59": FailureClass.RISK_DECLINED,          # suspected fraud
-    "61": FailureClass.LIMIT_EXCEEDED,         # exceeds withdrawal amount limit
-    "62": FailureClass.RISK_DECLINED,          # restricted card
-    "65": FailureClass.LIMIT_EXCEEDED,         # exceeds withdrawal frequency
-    "78": FailureClass.AUTH_REQUIRED,          # card not activated
-    "82": FailureClass.RISK_DECLINED,          # CVV failure
-    "91": FailureClass.ISSUER_TECHNICAL,       # issuer unavailable
+    "57": FailureClass.RISK_DECLINED,  # transaction not permitted
+    "59": FailureClass.RISK_DECLINED,  # suspected fraud
+    "61": FailureClass.LIMIT_EXCEEDED,  # exceeds withdrawal amount limit
+    "62": FailureClass.RISK_DECLINED,  # restricted card
+    "65": FailureClass.LIMIT_EXCEEDED,  # exceeds withdrawal frequency
+    "78": FailureClass.AUTH_REQUIRED,  # card not activated
+    "82": FailureClass.RISK_DECLINED,  # CVV failure
+    "91": FailureClass.ISSUER_TECHNICAL,  # issuer unavailable
     "92": FailureClass.ISSUER_TECHNICAL,
-    "96": FailureClass.ISSUER_TECHNICAL,       # system malfunction
+    "96": FailureClass.ISSUER_TECHNICAL,  # system malfunction
 }
 
 _TEXTUAL_CODES: dict[str, FailureClass] = {
@@ -137,8 +137,10 @@ def normalise_code(raw: str) -> str:
     token = raw.strip().lower()
     for prefix in ("npci:", "npci ", "upi:", "nach:", "rc ", "rc:", "code:", "error:"):
         if token.startswith(prefix):
-            token = token[len(prefix):].strip()
-    token = token.split()[0] if token and " " in token and _looks_like_code(token.split()[0]) else token
+            token = token[len(prefix) :].strip()
+    token = (
+        token.split()[0] if token and " " in token and _looks_like_code(token.split()[0]) else token
+    )
     return token.replace(" ", "_").replace("-", "_").strip("_.,;:")
 
 
@@ -159,7 +161,9 @@ def classify_code(raw: str, *, namespace: str | None = None) -> FailureClass | N
         return None
     token = normalise_code(raw)
     if namespace is not None:
-        return CODE_NAMESPACES[namespace].get(token) or CODE_NAMESPACES[namespace].get(token.upper())
+        return CODE_NAMESPACES[namespace].get(token) or CODE_NAMESPACES[namespace].get(
+            token.upper()
+        )
     for table in (_UPI_CODES, _NACH_RETURN_CODES, _CARD_ISO_CODES):
         hit = table.get(token.upper())
         if hit is not None:
@@ -261,26 +265,67 @@ class RetryCurve:
 #: settlement window -- retrying at 02:00 wastes an attempt. Late morning and
 #: early evening are the strongest.
 _CIRCADIAN: dict[int, Decimal] = {
-    0: Decimal("0.55"), 1: Decimal("0.40"), 2: Decimal("0.30"), 3: Decimal("0.35"),
-    4: Decimal("0.55"), 5: Decimal("0.75"), 6: Decimal("0.90"), 7: Decimal("1.00"),
-    8: Decimal("1.05"), 9: Decimal("1.10"), 10: Decimal("1.15"), 11: Decimal("1.15"),
-    12: Decimal("1.10"), 13: Decimal("1.05"), 14: Decimal("1.05"), 15: Decimal("1.08"),
-    16: Decimal("1.10"), 17: Decimal("1.12"), 18: Decimal("1.12"), 19: Decimal("1.08"),
-    20: Decimal("1.05"), 21: Decimal("1.00"), 22: Decimal("0.90"), 23: Decimal("0.72"),
+    0: Decimal("0.55"),
+    1: Decimal("0.40"),
+    2: Decimal("0.30"),
+    3: Decimal("0.35"),
+    4: Decimal("0.55"),
+    5: Decimal("0.75"),
+    6: Decimal("0.90"),
+    7: Decimal("1.00"),
+    8: Decimal("1.05"),
+    9: Decimal("1.10"),
+    10: Decimal("1.15"),
+    11: Decimal("1.15"),
+    12: Decimal("1.10"),
+    13: Decimal("1.05"),
+    14: Decimal("1.05"),
+    15: Decimal("1.08"),
+    16: Decimal("1.10"),
+    17: Decimal("1.12"),
+    18: Decimal("1.12"),
+    19: Decimal("1.08"),
+    20: Decimal("1.05"),
+    21: Decimal("1.00"),
+    22: Decimal("0.90"),
+    23: Decimal("0.72"),
 }
 
 #: Day-of-month multiplier for balance-driven failures. Indian salary credits
 #: cluster on the last working day and the first of the month; balances are at
 #: their thinnest in the days just before.
 _SALARY_CYCLE: dict[int, Decimal] = {
-    1: Decimal("1.45"), 2: Decimal("1.40"), 3: Decimal("1.30"), 4: Decimal("1.18"),
-    5: Decimal("1.10"), 6: Decimal("1.02"), 7: Decimal("0.96"), 8: Decimal("0.92"),
-    9: Decimal("0.88"), 10: Decimal("0.86"), 11: Decimal("0.84"), 12: Decimal("0.82"),
-    13: Decimal("0.80"), 14: Decimal("0.78"), 15: Decimal("0.80"), 16: Decimal("0.78"),
-    17: Decimal("0.75"), 18: Decimal("0.72"), 19: Decimal("0.70"), 20: Decimal("0.68"),
-    21: Decimal("0.66"), 22: Decimal("0.64"), 23: Decimal("0.64"), 24: Decimal("0.68"),
-    25: Decimal("0.80"), 26: Decimal("0.95"), 27: Decimal("1.10"), 28: Decimal("1.25"),
-    29: Decimal("1.35"), 30: Decimal("1.42"), 31: Decimal("1.45"),
+    1: Decimal("1.45"),
+    2: Decimal("1.40"),
+    3: Decimal("1.30"),
+    4: Decimal("1.18"),
+    5: Decimal("1.10"),
+    6: Decimal("1.02"),
+    7: Decimal("0.96"),
+    8: Decimal("0.92"),
+    9: Decimal("0.88"),
+    10: Decimal("0.86"),
+    11: Decimal("0.84"),
+    12: Decimal("0.82"),
+    13: Decimal("0.80"),
+    14: Decimal("0.78"),
+    15: Decimal("0.80"),
+    16: Decimal("0.78"),
+    17: Decimal("0.75"),
+    18: Decimal("0.72"),
+    19: Decimal("0.70"),
+    20: Decimal("0.68"),
+    21: Decimal("0.66"),
+    22: Decimal("0.64"),
+    23: Decimal("0.64"),
+    24: Decimal("0.68"),
+    25: Decimal("0.80"),
+    26: Decimal("0.95"),
+    27: Decimal("1.10"),
+    28: Decimal("1.25"),
+    29: Decimal("1.35"),
+    30: Decimal("1.42"),
+    31: Decimal("1.45"),
 }
 
 

@@ -70,9 +70,7 @@ __all__ = [
 
 #: Purposes that may not be blocked by the overall contact caps. They still
 #: write to the contact ledger and so still push other messages out.
-CAP_EXEMPT_PURPOSES: frozenset[MessagePurpose] = frozenset(
-    {MessagePurpose.STEP_UP_AUTHENTICATION}
-)
+CAP_EXEMPT_PURPOSES: frozenset[MessagePurpose] = frozenset({MessagePurpose.STEP_UP_AUTHENTICATION})
 
 #: Purposes eligible for a quiet-hours exemption. Eligibility is necessary and
 #: not sufficient -- the caller must also assert ``time_critical``.
@@ -230,9 +228,7 @@ def next_quiet_hours_end(when: dt.datetime, policy: FrequencyPolicy) -> dt.datet
     reason about.
     """
     local = to_ist(when)
-    boundary = local.replace(
-        hour=policy.quiet_hours_end_ist, minute=0, second=0, microsecond=0
-    )
+    boundary = local.replace(hour=policy.quiet_hours_end_ist, minute=0, second=0, microsecond=0)
     if boundary <= local:
         boundary = boundary + dt.timedelta(days=1)
     return boundary.astimezone(dt.UTC)
@@ -256,9 +252,7 @@ def evaluate_frequency(
     """
     if now.tzinfo is None:
         raise ValidationError("frequency must be evaluated at a timezone-aware instant")
-    if message.customer_id and any(
-        c.customer_id != message.customer_id for c in contacts
-    ):
+    if message.customer_id and any(c.customer_id != message.customer_id for c in contacts):
         raise ValidationError(
             "contact ledger rows for a different customer were passed to the evaluator",
             customer_id=message.customer_id,
@@ -285,9 +279,7 @@ def evaluate_frequency(
 
     cap_exempt = message.purpose in CAP_EXEMPT_PURPOSES
     if cap_exempt:
-        exemptions.append(
-            "overall caps waived: step-up completes an action the customer initiated"
-        )
+        exemptions.append("overall caps waived: step-up completes an action the customer initiated")
 
     if message.is_promotional:
         _check_count(
@@ -357,9 +349,7 @@ def evaluate_frequency(
 
     quiet_exempt = message.purpose in QUIET_HOURS_EXEMPT_PURPOSES and message.time_critical
     if quiet_exempt:
-        exemptions.append(
-            "quiet hours waived: time-critical step-up, a person is waiting on it"
-        )
+        exemptions.append("quiet hours waived: time-critical step-up, a person is waiting on it")
     elif in_quiet_hours(now, policy):
         clears = next_quiet_hours_end(now, policy)
         violations.append(

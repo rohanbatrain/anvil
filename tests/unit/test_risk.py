@@ -295,9 +295,7 @@ def test_more_contacts_never_lowers_churn_risk() -> None:
     """The term that stops the agent sending a sixth reminder."""
     history = CustomerHistory(tenure_days=200)
     risks = [
-        churn_risk(
-            failure_class=FailureClass.INSUFFICIENT_FUNDS, history=history, contacts_made=c
-        )
+        churn_risk(failure_class=FailureClass.INSUFFICIENT_FUNDS, history=history, contacts_made=c)
         for c in range(6)
     ]
     assert risks == sorted(risks)
@@ -455,9 +453,7 @@ def test_last_attempt_in_the_cycle_is_the_most_urgent_signal() -> None:
         snapshot(
             consecutive_failures=2,
             mandate_attempts_remaining=1,
-            recent_attempts=(
-                AttemptRecord(at=NOW, succeeded=False, attempt_number=2),
-            ),
+            recent_attempts=(AttemptRecord(at=NOW, succeeded=False, attempt_number=2),),
         ),
         now=NOW,
     )

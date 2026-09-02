@@ -47,11 +47,11 @@ class FailureClass(StrEnum):
 class RetryPosture(StrEnum):
     """What retrying this class of failure is worth."""
 
-    RETRY_FAST = "retry_fast"          # transient; retry within hours
+    RETRY_FAST = "retry_fast"  # transient; retry within hours
     RETRY_SCHEDULED = "retry_scheduled"  # retry, but timing matters a great deal
-    RETRY_ONCE = "retry_once"          # one conservative attempt, then stop
-    DEFERRED = "deferred"              # blocked on an external state change
-    NEVER = "never"                    # retrying is useless or actively harmful
+    RETRY_ONCE = "retry_once"  # one conservative attempt, then stop
+    DEFERRED = "deferred"  # blocked on an external state change
+    NEVER = "never"  # retrying is useless or actively harmful
 
 
 # ------------------------------------------------------------- authorisations
@@ -61,7 +61,7 @@ class AuthorisationType(StrEnum):
     UPI_AUTOPAY = "upi_autopay"
     ENACH = "enach"
     CARD_MANDATE = "card_mandate"
-    RESERVE_PAY = "reserve_pay"        # Single Block Multi Debit
+    RESERVE_PAY = "reserve_pay"  # Single Block Multi Debit
     DELEGATED_AGENT = "delegated_agent"  # modelled on UPI Circle
 
 
@@ -70,7 +70,7 @@ class AuthorisationStatus(StrEnum):
     PAUSED = "paused"
     REVOKED = "revoked"
     EXPIRED = "expired"
-    EXHAUSTED = "exhausted"            # a Reserve Pay block fully consumed
+    EXHAUSTED = "exhausted"  # a Reserve Pay block fully consumed
 
 
 class AuthorisationDecision(StrEnum):
@@ -109,7 +109,7 @@ class AccountKind(StrEnum):
     LIABILITY = "liability"
     REVENUE = "revenue"
     EXPENSE = "expense"
-    CONTRA_REVENUE = "contra_revenue"   # concessions granted
+    CONTRA_REVENUE = "contra_revenue"  # concessions granted
 
 
 class LedgerTxnType(StrEnum):
@@ -141,10 +141,10 @@ class CaseStatus(StrEnum):
     SCHEDULED = "scheduled"
     EXECUTING = "executing"
     PENDING_RECONCILIATION = "pending_reconciliation"
-    RECOVERED = "recovered"            # terminal, success
-    ABANDONED = "abandoned"            # terminal, stopping rule fired
-    UNRECOVERABLE = "unrecoverable"    # terminal, terminal failure class
-    CHURNED = "churned"                # terminal, customer left
+    RECOVERED = "recovered"  # terminal, success
+    ABANDONED = "abandoned"  # terminal, stopping rule fired
+    UNRECOVERABLE = "unrecoverable"  # terminal, terminal failure class
+    CHURNED = "churned"  # terminal, customer left
 
     @property
     def is_terminal(self) -> bool:
@@ -238,7 +238,7 @@ class ActionStatus(StrEnum):
     EXECUTING = "executing"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    UNKNOWN_OUTCOME = "unknown_outcome"   # gateway timeout; needs reconciliation
+    UNKNOWN_OUTCOME = "unknown_outcome"  # gateway timeout; needs reconciliation
     EXPIRED = "expired"
     CANCELLED = "cancelled"
 
@@ -326,23 +326,23 @@ class ErasureStatus(StrEnum):
 class ExperimentArm(StrEnum):
     """Assignment is a deterministic hash, so a rerun reproduces it exactly."""
 
-    CONTROL = "control"        # no intervention at all
-    BASELINE = "baseline"      # fixed-schedule dunning
-    ANVIL = "anvil"            # the full agent
+    CONTROL = "control"  # no intervention at all
+    BASELINE = "baseline"  # fixed-schedule dunning
+    ANVIL = "anvil"  # the full agent
 
 
 # ---------------------------------------------------------------- human loop
 
 
 class InterruptKind(StrEnum):
-    HUMAN_APPROVAL = "human_approval"     # merchant operator must decide
-    AFA_STEP_UP = "afa_step_up"           # customer must re-authenticate
+    HUMAN_APPROVAL = "human_approval"  # merchant operator must decide
+    AFA_STEP_UP = "afa_step_up"  # customer must re-authenticate
 
 
 class ApprovalDecision(StrEnum):
     APPROVE = "approve"
     REJECT = "reject"
-    EDIT = "edit"        # operator amends the payload, then approves
+    EDIT = "edit"  # operator amends the payload, then approves
 
 
 # --------------------------------------------------------------------- audit
@@ -355,7 +355,7 @@ class AuditEventType(StrEnum):
     PLAN_PRODUCED = "plan_produced"
     AUTHORISATION_CHECKED = "authorisation_checked"
     POLICY_EVALUATED = "policy_evaluated"
-    MODEL_SAFETY_EVENT = "model_safety_event"   # model proposed out-of-bounds
+    MODEL_SAFETY_EVENT = "model_safety_event"  # model proposed out-of-bounds
     APPROVAL_REQUESTED = "approval_requested"
     APPROVAL_RESOLVED = "approval_resolved"
     STEP_UP_REQUESTED = "step_up_requested"

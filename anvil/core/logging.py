@@ -18,11 +18,29 @@ from anvil.core.config import get_settings
 #: Keys whose values are always masked, wherever they appear in a log event.
 SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
-        "vpa", "upi_id", "card_number", "pan", "account_number", "ifsc",
-        "phone", "mobile", "email", "customer_email", "customer_phone",
-        "api_key", "key_secret", "webhook_secret", "authorization",
-        "anthropic_api_key", "razorpay_key_secret", "token", "otp", "mpin",
-        "password", "secret", "signature",
+        "vpa",
+        "upi_id",
+        "card_number",
+        "pan",
+        "account_number",
+        "ifsc",
+        "phone",
+        "mobile",
+        "email",
+        "customer_email",
+        "customer_phone",
+        "api_key",
+        "key_secret",
+        "webhook_secret",
+        "authorization",
+        "anthropic_api_key",
+        "razorpay_key_secret",
+        "token",
+        "otp",
+        "mpin",
+        "password",
+        "secret",
+        "signature",
     }
 )
 

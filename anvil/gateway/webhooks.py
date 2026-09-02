@@ -337,7 +337,9 @@ def check_ordering(event: NormalisedEvent, cursor: AggregateCursor | None) -> Or
             cursor.version,
         )
 
-    return OrderingDecision(OrderingVerdict.APPLY, "event advances the aggregate", cursor.next_version)
+    return OrderingDecision(
+        OrderingVerdict.APPLY, "event advances the aggregate", cursor.next_version
+    )
 
 
 def require_in_order(event: NormalisedEvent, cursor: AggregateCursor | None) -> OrderingDecision:

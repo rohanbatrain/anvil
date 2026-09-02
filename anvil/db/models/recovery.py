@@ -197,7 +197,9 @@ class RecoveryAction(Base, TimestampMixin, MerchantScopedMixin):
         sa.UniqueConstraint("case_id", "sequence", name="uq_action_case_sequence"),
         Index("ix_actions_due", "status", "scheduled_for"),
         Index("ix_actions_merchant_status", "merchant_id", "status"),
-        sa.CheckConstraint("amount_minor IS NULL OR amount_minor > 0", name="action_amount_positive"),
+        sa.CheckConstraint(
+            "amount_minor IS NULL OR amount_minor > 0", name="action_amount_positive"
+        ),
         sa.CheckConstraint(
             "model_confidence IS NULL OR model_confidence BETWEEN 0 AND 100",
             name="action_confidence_range",

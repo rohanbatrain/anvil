@@ -507,9 +507,7 @@ def _counterparty_mismatch(
             f"{request.amount.currency.value}"
         )
     if usage.authorisation_id != auth.id:
-        return (
-            f"usage row accounts against authorisation {usage.authorisation_id}, not {auth.id}"
-        )
+        return f"usage row accounts against authorisation {usage.authorisation_id}, not {auth.id}"
     return None
 
 

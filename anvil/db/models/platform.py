@@ -216,6 +216,8 @@ class LLMCall(Base, CreatedAtMixin):
 
     __table_args__ = (
         Index("ix_llm_calls_kind_created", "kind", "created_at"),
-        sa.CheckConstraint("input_tokens >= 0 AND output_tokens >= 0", name="llm_tokens_non_negative"),
+        sa.CheckConstraint(
+            "input_tokens >= 0 AND output_tokens >= 0", name="llm_tokens_non_negative"
+        ),
         sa.CheckConstraint("cost_minor >= 0", name="llm_cost_non_negative"),
     )

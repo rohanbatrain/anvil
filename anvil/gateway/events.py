@@ -234,8 +234,7 @@ def parse_envelope(raw_body: bytes, headers: Mapping[str, str]) -> WebhookEnvelo
         raw_body=raw_body,
         body=decoded,
         signature=header_value(headers, SIGNATURE_HEADER) or "",
-        account_id=header_value(headers, ACCOUNT_ID_HEADER)
-        or _as_str(decoded.get("account_id")),
+        account_id=header_value(headers, ACCOUNT_ID_HEADER) or _as_str(decoded.get("account_id")),
         contains=tuple(c for c in contains if isinstance(c, str))
         if isinstance(contains, list)
         else (),
@@ -482,9 +481,7 @@ def parse_token_event(envelope: WebhookEnvelope) -> NormalisedEvent:
     rejected or cancelled, and it is the recurring authority Anvil needs.
     """
     ents = _entities(envelope)
-    state = _first_str(
-        _nested(ents.token, "recurring_details", "status"), ents.token.get("status")
-    )
+    state = _first_str(_nested(ents.token, "recurring_details", "status"), ents.token.get("status"))
     max_amount = ents.token.get("max_amount")
     return _normalise(
         envelope,

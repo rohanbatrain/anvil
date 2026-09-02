@@ -247,7 +247,9 @@ class CustomerModel:
             probability *= IRRELEVANT_MESSAGE_FACTOR
         probability *= _PURPOSE_FRICTION.get(outreach.purpose, ONE)
         if outreach.concession is not None and outreach.concession.is_positive:
-            probability *= ONE + self.concession_acceptance(traits, outreach.concession, outreach.mrr)
+            probability *= ONE + self.concession_acceptance(
+                traits, outreach.concession, outreach.mrr
+            )
         return clamp_unit(probability)
 
     def concession_acceptance(
@@ -328,9 +330,7 @@ class CustomerModel:
                 concessions_accepted=next_state.concessions_accepted + 1,
             )
         elif outreach.concession is not None:
-            next_state = replace(
-                next_state, concessions_offered=next_state.concessions_offered + 1
-            )
+            next_state = replace(next_state, concessions_offered=next_state.concessions_offered + 1)
         if updated_instrument:
             next_state = replace(next_state, instrument_updated=True)
         if reauthorised:

@@ -337,9 +337,7 @@ class ChannelRegistry:
         The planner uses it to choose the cheapest channel that can carry the
         content, which is a deterministic decision and stays out of the model.
         """
-        return {
-            channel: adapter.cost_for(message) for channel, adapter in self._adapters.items()
-        }
+        return {channel: adapter.cost_for(message) for channel, adapter in self._adapters.items()}
 
 
 def zero_cost(currency: Currency = Currency.INR) -> Money:

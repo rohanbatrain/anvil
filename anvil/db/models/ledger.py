@@ -176,7 +176,9 @@ class BudgetReservation(Base, TimestampMixin, MerchantScopedMixin):
 
     id: Mapped[str] = pk_column("rsv")
     budget_id: Mapped[str] = mapped_column(
-        String(32), ForeignKey("concession_budgets.id", ondelete="RESTRICT"), nullable=False,
+        String(32),
+        ForeignKey("concession_budgets.id", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     case_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -240,9 +242,7 @@ class ConcessionBudget(Base, TimestampMixin, MerchantScopedMixin):
         sa.CheckConstraint("funded_minor >= 0", name="budget_funded_non_negative"),
         sa.CheckConstraint("per_customer_cap_minor > 0", name="budget_customer_cap_positive"),
         sa.CheckConstraint("per_action_cap_minor > 0", name="budget_action_cap_positive"),
-        sa.CheckConstraint(
-            "max_percent_of_mrr BETWEEN 0 AND 100", name="budget_mrr_percent_range"
-        ),
+        sa.CheckConstraint("max_percent_of_mrr BETWEEN 0 AND 100", name="budget_mrr_percent_range"),
         sa.CheckConstraint("period_end > period_start", name="budget_period_ordered"),
     )
 

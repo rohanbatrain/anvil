@@ -34,7 +34,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Final, TypeVar
+from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -168,8 +168,6 @@ def _spec(
     )
 
 
-_E = TypeVar("_E", bound=StrEnum)
-
 _INT = FactKind.INT
 _STR = FactKind.STRING
 _BOOL = FactKind.BOOLEAN
@@ -185,12 +183,18 @@ FACT_SPECS: Final[Mapping[str, FactSpec]] = dict(
             "Money at stake in this action, in minor units. Zero for pure outreach.",
             minimum=0,
         ),
-        _spec("currency", _STR, "Currency of every amount in these facts.", allowed=_values(Currency)),
+        _spec(
+            "currency", _STR, "Currency of every amount in these facts.", allowed=_values(Currency)
+        ),
         _spec("is_money_movement", _BOOL, "True when the action debits the customer."),
         _spec("is_concession", _BOOL, "True when the action draws on the concession budget."),
-        _spec("is_outreach", _BOOL, "True when the action puts a message in front of the customer."),
+        _spec(
+            "is_outreach", _BOOL, "True when the action puts a message in front of the customer."
+        ),
         _spec("is_debit_retry", _BOOL, "True when the action consumes a mandate retry allowance."),
-        _spec("is_terminal_action", _BOOL, "True when the action closes the case one way or another."),
+        _spec(
+            "is_terminal_action", _BOOL, "True when the action closes the case one way or another."
+        ),
         # --- the failure ---------------------------------------------------
         _spec(
             "failure_class",
@@ -204,18 +208,26 @@ FACT_SPECS: Final[Mapping[str, FactSpec]] = dict(
             _BOOL,
             "True when the failure class has a NEVER retry posture.",
         ),
-        _spec("hours_since_failure", _INT, "Whole hours since the original debit failed.", minimum=0),
+        _spec(
+            "hours_since_failure", _INT, "Whole hours since the original debit failed.", minimum=0
+        ),
         # --- the case ------------------------------------------------------
-        _spec("case_attempt_count", _INT, "Recovery attempts already made on this case.", minimum=0),
+        _spec(
+            "case_attempt_count", _INT, "Recovery attempts already made on this case.", minimum=0
+        ),
         _spec(
             "mandate_cycle_attempt_count",
             _INT,
             "Debit attempts already consumed in the mandate's current cycle.",
             minimum=0,
         ),
-        _spec("case_contact_count", _INT, "Outreach messages already sent on this case.", minimum=0),
+        _spec(
+            "case_contact_count", _INT, "Outreach messages already sent on this case.", minimum=0
+        ),
         # --- contact history -------------------------------------------------
-        _spec("contacts_last_24h", _INT, "Contacts to this customer in the last 24 hours.", minimum=0),
+        _spec(
+            "contacts_last_24h", _INT, "Contacts to this customer in the last 24 hours.", minimum=0
+        ),
         _spec("contacts_last_7d", _INT, "Contacts to this customer in the last 7 days.", minimum=0),
         _spec(
             "hours_since_last_contact",
@@ -226,13 +238,20 @@ FACT_SPECS: Final[Mapping[str, FactSpec]] = dict(
         ),
         _spec("has_prior_contact", _BOOL, "True when this customer has ever been contacted."),
         # --- local time ------------------------------------------------------
-        _spec("local_hour_ist", _INT, "Hour of day in IST, 0-23. Quiet hours are an IST concept.",
-              minimum=0, maximum=23),
+        _spec(
+            "local_hour_ist",
+            _INT,
+            "Hour of day in IST, 0-23. Quiet hours are an IST concept.",
+            minimum=0,
+            maximum=23,
+        ),
         _spec("local_day_of_month_ist", _INT, "Day of month in IST, 1-31.", minimum=1, maximum=31),
         # --- the customer -----------------------------------------------------
         _spec("customer_tenure_days", _INT, "Days since the customer first subscribed.", minimum=0),
         _spec("lifetime_value_minor", _INT, "Lifetime value booked from this customer.", minimum=0),
-        _spec("prior_concession_count", _INT, "Concessions this customer has already had.", minimum=0),
+        _spec(
+            "prior_concession_count", _INT, "Concessions this customer has already had.", minimum=0
+        ),
         _spec(
             "prior_concessions_minor",
             _INT,
@@ -251,8 +270,12 @@ FACT_SPECS: Final[Mapping[str, FactSpec]] = dict(
             "True when this concession would breach the per-customer ceiling.",
         ),
         # --- the money ---------------------------------------------------------
-        _spec("subscription_mrr_minor", _INT, "Monthly recurring value of the subscription.",
-              minimum=0),
+        _spec(
+            "subscription_mrr_minor",
+            _INT,
+            "Monthly recurring value of the subscription.",
+            minimum=0,
+        ),
         _spec(
             "concession_percent_of_mrr",
             _INT,
@@ -292,7 +315,9 @@ FACT_SPECS: Final[Mapping[str, FactSpec]] = dict(
             allowed=_values(AuthorisationDecision),
         ),
         # --- scores ----------------------------------------------------------------
-        _spec("recovery_likelihood", _INT, "Modelled P(recovery), 0-1000.", minimum=0, maximum=1000),
+        _spec(
+            "recovery_likelihood", _INT, "Modelled P(recovery), 0-1000.", minimum=0, maximum=1000
+        ),
         _spec("churn_risk", _INT, "Modelled P(churn), 0-1000.", minimum=0, maximum=1000),
         # --- the merchant -------------------------------------------------------------
         _spec(
@@ -357,8 +382,9 @@ class PolicyFacts(BaseModel):
     # --- contact history --------------------------------------------------------
     contacts_last_24h: int = Field(default=0, ge=0)
     contacts_last_7d: int = Field(default=0, ge=0)
-    hours_since_last_contact: int = Field(default=NEVER_CONTACTED_HOURS, ge=0,
-                                          le=NEVER_CONTACTED_HOURS)
+    hours_since_last_contact: int = Field(
+        default=NEVER_CONTACTED_HOURS, ge=0, le=NEVER_CONTACTED_HOURS
+    )
     has_prior_contact: bool = False
 
     # --- local time --------------------------------------------------------------
@@ -477,7 +503,7 @@ def _as_int(value: Any, default: int) -> int | None:
     return value if isinstance(value, int) else None
 
 
-def _as_enum(value: Any, enum_cls: type[_E]) -> _E | None:
+def _as_enum[E: StrEnum](value: Any, enum_cls: type[E]) -> E | None:
     if isinstance(value, enum_cls):
         return value
     if isinstance(value, str):
