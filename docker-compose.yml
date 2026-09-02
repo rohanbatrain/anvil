@@ -1,0 +1,71 @@
+# Anvil. `docker compose up` boots the whole system, seeded, with no credentials.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: anvil-postgres
+    environment:
+      POSTGRES_USER: anvil
+      POSTGRES_PASSWORD: anvil
+      POSTGRES_DB: anvil
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports: ["5432:5432"]
+    volumes:
+      - anvil-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anvil -d anvil"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    command: >
+      postgres -c max_connections=200 -c shared_buffers=256MB
+               -c log_min_duration_statement=500
+
+  redis:
+    image: redis:7-alpine
+    container_name: anvil-redis
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: {context: ., dockerfile: Dockerfile}
+    container_name: anvil-api
+    command: ["uvicorn", "anvil.main_api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: &anvil-env
+      ANVIL_MODE: ${ANVIL_MODE:-offline}
+      ANVIL_DATABASE_URL: postgresql+asyncpg://anvil:anvil@postgres:5432/anvil
+      ANVIL_REDIS_URL: redis://redis:6379/0
+      ANVIL_SEED: ${ANVIL_SEED:-20260902}
+      ANVIL_LOG_FORMAT: ${ANVIL_LOG_FORMAT:-console}
+      ANVIL_RAZORPAY_KEY_ID: ${ANVIL_RAZORPAY_KEY_ID:-}
+      ANVIL_RAZORPAY_KEY_SECRET: ${ANVIL_RAZORPAY_KEY_SECRET:-}
+      ANVIL_RAZORPAY_WEBHOOK_SECRET: ${ANVIL_RAZORPAY_WEBHOOK_SECRET:-}
+      ANVIL_ANTHROPIC_API_KEY: ${ANVIL_ANTHROPIC_API_KEY:-}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  worker:
+    build: {context: ., dockerfile: Dockerfile}
+    container_name: anvil-worker
+    command: ["python", "-m", "anvil.main_worker"]
+    environment: *anvil-env
+    depends_on:
+      api: {condition: service_started}
+      postgres: {condition: service_healthy}
+
+  console:
+    build: {context: ./console, dockerfile: Dockerfile}
+    container_name: anvil-console
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on:
+      api: {condition: service_started}
+
+volumes:
+  anvil-pgdata:

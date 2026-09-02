@@ -113,6 +113,9 @@ class AccountKind(StrEnum):
 
 
 class LedgerTxnType(StrEnum):
+    #: The invoice exists and is unpaid. Recognised when a case opens, so that a
+    #: later write-off has a real asset to write off rather than a memo entry.
+    RECEIVABLE_RECOGNISED = "receivable_recognised"
     MANDATE_DEBIT_SETTLED = "mandate_debit_settled"
     CONCESSION_GRANTED = "concession_granted"
     CONCESSION_RESERVED = "concession_reserved"
