@@ -3,7 +3,15 @@
 **A revenue-recovery control plane for failed recurring payments.**
 Razorpay AI Buildathon 2026 · Track 03: AI Revenue Recovery
 
+[![CI](https://github.com/rohanbatrain/anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/rohanbatrain/anvil/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-203-brightgreen)](docs/reference/testing.md)
+[![License: MIT](https://img.shields.io/badge/licence-MIT-yellow)](LICENSE)
+
 > Vulcan is Razorpay's forge. Anvil is where at-risk revenue gets hammered back into settled revenue.
+
+**Assessing this?** [`REVIEWING.md`](REVIEWING.md) is a guided path through the codebase in five,
+fifteen and thirty minutes, and it points you straight at the weakest part rather than around it.
 
 ---
 
@@ -269,7 +277,7 @@ Anvil is designed *for* that shape; it does not claim to integrate with it.
 anvil/
   domain/      Money, the closed enums, 76 decline codes, retry hazard curves
   core/        config, injectable clock, prefixed ULIDs, errors, redacting logs
-  db/          33 tables across seven modules, Alembic migrations
+  db/          32 tables across seven modules, Alembic migrations
   ledger/      posting, derived balances, budget reservations, immutability triggers
   risk/        the DP scheduler, scoring, calibration, at-risk detection
   policy/      evaluator, 27-rule default bundle, content hashing, NL compiler
@@ -280,19 +288,26 @@ anvil/
   channels/    outreach adapters, consent gate, frequency caps
   simulator/   seeded issuer, customer and world models
   evidence/    arm assignment, bootstrap statistics, batch reporting
-  audit/       immutable trail, event log, outbox relay, time-travel replay
-docs/
-  ARCHITECTURE.md   the thesis, invariants, taxonomy, authorisation model
-  DESIGN.md         the console design system
-  board.html        visual build board — open in a browser
-scripts/tour.py     the guided tour
+  api/         twelve endpoints and the console they serve
+  audit/       immutable trail, event log, outbox relay, replay  (not built)
 ```
 
 The orchestrator imports none of the modules it drives. `anvil/graph/ports.py` declares twelve narrow
 Protocols; the composition root supplies implementations. `LedgerPort` states in one place exactly how
 much authority the agent has over the books: four economic events and nothing else.
 
----
+## Documentation
+
+Organised by [Diátaxis](https://diataxis.fr/) — split by what you are trying to do.
+Full index at [`docs/`](docs/).
+
+| | |
+|---|---|
+| **Start here** | [Recover your first payment](docs/tutorials/first-recovery.md) — fifteen minutes, no credentials |
+| **Understand it** | [Architecture](docs/explanation/architecture.md) · [Why not an LLM for retry timing](docs/explanation/why-not-an-llm-for-retry-timing.md) · [How recovery is measured](docs/explanation/the-evidence-model.md) · [Compliance](docs/explanation/compliance.md) |
+| **Look things up** | [The ten invariants](docs/reference/invariants.md) · [Money and the ledger](docs/reference/ledger.md) · [Policy and authorisation](docs/reference/policy.md) · [The agent](docs/reference/the-agent.md) · [Data model](docs/reference/data-model.md) · [HTTP API](docs/reference/api.md) · [Configuration](docs/reference/configuration.md) · [Glossary](docs/reference/glossary.md) |
+| **Do something** | [Run the batch](docs/how-to/run-the-batch.md) · [Operations](docs/how-to/operations.md) · [Connect Razorpay test mode](docs/how-to/connect-razorpay-test-mode.md) · [Fit the retry curves](docs/how-to/fit-the-retry-curves.md) |
+| **Decisions** | [13 architecture decision records](docs/adr/), each with the alternatives that lost |
 
 ## Honest limitations
 

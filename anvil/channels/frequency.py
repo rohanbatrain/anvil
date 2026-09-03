@@ -1,6 +1,6 @@
 """Contact-frequency caps, minimum gaps and IST quiet hours.
 
-These are stopping rules, and ``docs/ARCHITECTURE.md`` section 3 is explicit
+These are stopping rules, and ``docs/explanation/architecture.md`` section 3 is explicit
 that a stopping rule a model can talk itself out of is not a stopping rule. So
 everything here is arithmetic over the append-only
 :class:`~anvil.db.models.comms.ContactLedger`, evaluated by a pure function with

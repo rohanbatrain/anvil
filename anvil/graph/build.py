@@ -1,6 +1,6 @@
 """Assembling the recovery graph.
 
-The topology is in ``docs/ARCHITECTURE.md`` section 10. What is worth explaining
+The topology is in ``docs/explanation/architecture.md`` section 10. What is worth explaining
 here is the routing, because the edges carry as much of the design as the nodes.
 
 **Every path to execution runs authorise -> policy.** There is no edge that

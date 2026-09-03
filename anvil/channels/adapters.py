@@ -12,7 +12,7 @@ everything the system pretended to do.
 
 **Why the email path writes files rather than opening an SMTP socket.** Offline
 mode is the default and must work with no credentials and no network
-(``docs/ARCHITECTURE.md`` section 14). A file in ``var/outbox`` is a real
+(``docs/explanation/architecture.md`` section 14). A file in ``var/outbox`` is a real
 artifact produced by real rendering, addressing and pricing logic -- everything
 except the last hop. :class:`~anvil.channels.base.DeliveryMedium` records that
 the last hop did not happen, and
@@ -144,7 +144,7 @@ def provider_id(medium: DeliveryMedium, channel: Channel, *parts: str) -> str:
 
     Derived from the message's own identifiers rather than randomly, so a
     seeded rerun of the demo produces byte-identical provider ids and the
-    reproducibility claim in ``docs/ARCHITECTURE.md`` section 14 covers the
+    reproducibility claim in ``docs/explanation/architecture.md`` section 14 covers the
     channel layer too.
     """
     digest = hashlib.blake2b("\x1f".join(parts).encode(), digest_size=6).hexdigest()

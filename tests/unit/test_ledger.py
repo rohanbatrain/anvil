@@ -1,6 +1,6 @@
 """The ledger's invariants, tested as properties rather than as examples.
 
-Section 6 of ``docs/ARCHITECTURE.md`` numbers ten invariants. Four of them are
+Section 6 of ``docs/explanation/architecture.md`` numbers ten invariants. Four of them are
 the ledger's, and each has a test here marked ``@pytest.mark.invariant``. They
 are properties, not examples, because "this particular posting balances" is a
 much weaker claim than "no posting this module can construct fails to balance",

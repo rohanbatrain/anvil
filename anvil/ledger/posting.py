@@ -1,6 +1,6 @@
 """Constructing and committing balanced double-entry transactions.
 
-Invariants 2, 3 and 5 from ``docs/ARCHITECTURE.md`` are enforced here, and the
+Invariants 2, 3 and 5 from ``docs/explanation/architecture.md`` are enforced here, and the
 module is deliberately split so that they are enforced *before* anything
 touches a database:
 

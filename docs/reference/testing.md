@@ -55,7 +55,7 @@ live server.
 
 ### `tests/unit/test_ledger.py` — 25 tests, 8 of them `invariant`
 
-The four ledger invariants from `docs/ARCHITECTURE.md` §6, written as
+The four ledger invariants from `docs/explanation/architecture.md` §6, written as
 properties rather than examples. "This particular posting balances" is a much
 weaker claim than "no posting this module can construct fails to balance".
 
@@ -237,7 +237,7 @@ no-op.
 
 | Marker | Declared as | Used by |
 |---|---|---|
-| `invariant` | enforces a financial invariant from ARCHITECTURE.md section 6 | 8 tests, all in `test_ledger.py` |
+| `invariant` | enforces a financial invariant from docs/explanation/architecture.md section 6 | 8 tests, all in `test_ledger.py` |
 | `integration` | requires a live Postgres | nothing yet |
 | `e2e` | full stack end-to-end | nothing yet |
 
@@ -558,7 +558,7 @@ Always pass `deadline=None`.
 ### An invariant test
 
 Add `@pytest.mark.invariant` **and** say in the docstring which of the ten
-invariants in `docs/ARCHITECTURE.md` §6 it enforces. Prefer a property over an
+invariants in `docs/explanation/architecture.md` §6 it enforces. Prefer a property over an
 example: the marker is a claim about what the module can be made to do, not
 about one input. Keep the selection small enough that `make invariants` stays
 readable in one screen.

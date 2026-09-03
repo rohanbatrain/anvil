@@ -5,7 +5,7 @@
 > The model decides. The ledger disposes. Nothing the model says can move money.
 
 This document describes the code in `anvil/graph/`, `anvil/llm/` and `anvil/risk/` as it is, including
-the seams that are declared but not yet wired. Where something is specified in `docs/ARCHITECTURE.md`
+the seams that are declared but not yet wired. Where something is specified in `docs/explanation/architecture.md`
 but not implemented, this document says so rather than describing the specification as if it ran.
 
 ---
@@ -598,7 +598,7 @@ failure, and the planner filter is what actually enforces the closed set today.
 
 ### 6.2 Everywhere else, output is coerced rather than validated
 
-Stated plainly because `docs/ARCHITECTURE.md` §13 describes a Pydantic validate-and-retry loop, and no
+Stated plainly because `docs/explanation/architecture.md` §13 describes a Pydantic validate-and-retry loop, and no
 such loop exists in the graph:
 
 - **Classification.** `str(result.get("failure_class", "unknown"))` is stored **without being checked
@@ -931,7 +931,7 @@ Distinct from unavailability, and handled less completely:
 - **A malformed diagnosis or empty composed body** — stored/sent as-is. The diagnosis only ever reaches
   the model again as context and the audit log as a string; an empty body still goes to the channel
   layer, which applies its own checks.
-- **There is no retry-with-validation-error loop.** `docs/ARCHITECTURE.md` §13 describes one and
+- **There is no retry-with-validation-error loop.** `docs/explanation/architecture.md` §13 describes one and
   `settings.llm_max_retries` is defined at 3, but the graph does not implement it: one exception is one
   degradation.
 

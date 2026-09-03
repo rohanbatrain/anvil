@@ -25,7 +25,7 @@ easier implementation:
    mandated. The gate enqueues a purpose-scoped erasure event on the
    transactional outbox in the same transaction as the withdrawal receipt, so a
    crash between the two is not possible. Ledger and audit rows are tombstoned
-   rather than deleted, per ``docs/ARCHITECTURE.md`` section 12.
+   rather than deleted, per ``docs/explanation/architecture.md`` section 12.
 """
 
 from __future__ import annotations

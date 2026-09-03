@@ -1,6 +1,6 @@
 """The single, total authorisation check.
 
-Invariant 6 of ``docs/ARCHITECTURE.md``: no action executes without a valid
+Invariant 6 of ``docs/explanation/architecture.md``: no action executes without a valid
 authorisation, and the check fails closed. This module is the one place in
 Anvil that is allowed to return :data:`AuthorisationDecision.AUTHORISED`, and
 it does so from exactly one statement at the very bottom of one function, after

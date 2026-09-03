@@ -697,7 +697,7 @@ rollup with the derivation kept as the authority to check it against, not a muta
 
 ## 8. The invariants, and the test that proves each
 
-Four of the ten invariants in `docs/ARCHITECTURE.md` §6 are the ledger's. `tests/unit/test_ledger.py`
+Four of the ten invariants in `docs/explanation/architecture.md` §6 are the ledger's. `tests/unit/test_ledger.py`
 holds 25 tests, 8 of them marked `@pytest.mark.invariant`. They are properties rather than examples,
 because "this particular posting balances" is a much weaker claim than "no posting this module can
 construct fails to balance".

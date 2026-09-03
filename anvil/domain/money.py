@@ -1,6 +1,6 @@
 """Money as an exact integer quantity of minor units.
 
-Invariant 3 from ``docs/ARCHITECTURE.md``: floats are banned from the money path.
+Invariant 3 from ``docs/explanation/architecture.md``: floats are banned from the money path.
 Every amount in Anvil is an integer count of the currency's minor unit (paise for
 INR) paired with its currency. Arithmetic across currencies raises rather than
 silently coercing, and division is only available in forms that provably conserve

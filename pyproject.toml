@@ -83,5 +83,5 @@ addopts = "-q --strict-markers"
 markers = [
     "integration: requires a live Postgres",
     "e2e: full stack end-to-end",
-    "invariant: enforces a financial invariant from ARCHITECTURE.md section 6",
+    "invariant: enforces a financial invariant from docs/explanation/architecture.md section 6",
 ]

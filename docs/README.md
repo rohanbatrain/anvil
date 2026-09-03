@@ -1,39 +1,101 @@
 # Anvil documentation
 
-Anvil is a revenue-recovery control plane for failed recurring payments. The
-[root README](../README.md) states the problem, the thesis, and the one-command tour. Everything below
-goes a level deeper.
+Organised by what you are trying to do, following
+[Diátaxis](https://diataxis.fr/). The four kinds answer different questions, and
+mixing them is the most common way documentation becomes unusable, so they are
+kept apart.
 
-Read in this order if you are new:
+| If you want to… | Go to | Which is |
+|---|---|---|
+| **learn** how the system works by using it | [Tutorials](#tutorials) | study + action |
+| **do** a specific thing | [How-to guides](#how-to-guides) | work + action |
+| **look up** a fact | [Reference](#reference) | work + knowledge |
+| **understand** why it is built this way | [Explanation](#explanation) | study + knowledge |
 
-| Document | What it answers |
-| --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | How the system is shaped, where AI is used and deliberately is not, and the invariants that hold it together |
-| [OPERATIONS.md](OPERATIONS.md) | How to install, configure, migrate, run, and troubleshoot it |
-| [API.md](API.md) | Every HTTP endpoint, its parameters, responses, and errors |
-| [DATA_MODEL.md](DATA_MODEL.md) | Every table, column, constraint, and the migration workflow |
-| [LEDGER.md](LEDGER.md) | The money type, the chart of accounts, and the postings that move rupees |
-| [POLICY.md](POLICY.md) | The policy expression language, the fact namespace, mandate authorisation, and consent caps |
-| [AGENT.md](AGENT.md) | The recovery graph, its nodes, what reaches the model, and what happens when the model does not answer |
-| [EVIDENCE.md](EVIDENCE.md) | The batch experiment, the simulator behind it, and what the numbers do and do not prove |
-| [TESTING.md](TESTING.md) | The test pyramid, the markers, the fixtures, and how to add a test |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Setup, the lint and typecheck loop, conventions, and the pre-PR checklist |
-| [DESIGN.md](DESIGN.md) | The console's design system |
+**Assessing this as a submission?** Start with [`../REVIEWING.md`](../REVIEWING.md),
+which routes you through the highest-signal parts in five, fifteen and thirty
+minutes.
 
-## The one-paragraph version
+---
 
-A debit fails. Intake classifies the decline against a taxonomy; the model is asked only where rules
-genuinely fail. A scheduler proposes when and whether to retry, bounded by the mandate's remaining
-authorisation. A policy engine evaluates the proposal against content-hashed rules and either permits
-it, refuses it with a reason, or routes it to a named human. Only then does the ledger post — in
-balanced double-entry legs, append-only, on an account chart that cannot be sidestepped. The model
-decides. The ledger disposes. Nothing the model says can move money.
+## Tutorials
 
-## Reading paths
+Learning by doing. Start here if the system is new to you.
 
-- **Judging the submission**: root README, then [ARCHITECTURE.md](ARCHITECTURE.md), then
-  [EVIDENCE.md](EVIDENCE.md) — including its threats-to-validity section.
-- **Running it locally**: [OPERATIONS.md](OPERATIONS.md), then [API.md](API.md).
-- **Changing the money paths**: [LEDGER.md](LEDGER.md) and [POLICY.md](POLICY.md), then
-  [TESTING.md](TESTING.md) for the invariant suite that must stay green.
-- **Changing the agent**: [AGENT.md](AGENT.md), then [POLICY.md](POLICY.md) for the gate it must pass.
+- [**Recover your first payment**](tutorials/first-recovery.md) — open the
+  console, work a real paused case through the approval queue, and watch the
+  graph resume and settle. Fifteen minutes, no credentials.
+
+## How-to guides
+
+Recipes for a specific goal. They assume you already know roughly what you are
+doing.
+
+- [Run the batch experiment](how-to/run-the-batch.md)
+- [Operations](how-to/operations.md) — setup, configuration, running the
+  services, and what to do when something breaks
+- [Add a decline code](how-to/add-a-decline-code.md)
+- [Add or change a policy rule](how-to/add-a-policy-rule.md)
+- [Connect Razorpay test mode](how-to/connect-razorpay-test-mode.md)
+- [Fit the retry curves to real outcomes](how-to/fit-the-retry-curves.md)
+
+## Reference
+
+Facts, described as plainly as possible and not tailored to any task.
+
+**The system**
+
+- [The ten invariants](reference/invariants.md) — each guarantee, what enforces
+  it, and the test that proves it
+- [Money and the ledger](reference/ledger.md) — the `Money` type and the
+  append-only double-entry ledger, in full
+- [Policy, authorisation and consent](reference/policy.md) — the three
+  deterministic gates
+- [The recovery agent](reference/the-agent.md) — the graph, its nodes, what the
+  model is shown, and what happens when the model is not there
+- [Data model](reference/data-model.md) — every table, column and constraint
+
+**Interfaces**
+
+- [HTTP API](reference/api.md) — twelve endpoints, or read the live OpenAPI at `/docs`
+- [Configuration](reference/configuration.md) — every environment variable,
+  generated from the settings model
+- [Console design system](reference/design-system.md) — the binding visual spec
+
+**Method**
+
+- [Evidence methodology](reference/evidence-methodology.md) — what the batch
+  claims, how it is built, and where it stops being evidence
+- [Testing](reference/testing.md) — 203 tests, no database or network
+- [Glossary](reference/glossary.md) — mandate, UMN, e-NACH, AFA, dunning, and
+  the rest of the vocabulary
+
+## Explanation
+
+Background and reasoning. Read when you want to understand rather than act.
+
+- [**Architecture**](explanation/architecture.md) — the thesis, the invariants,
+  the decline taxonomy, the authorisation model, and an explicit account of where
+  AI is *not* used
+- [Why a dynamic program, not a model, decides retry timing](explanation/why-not-an-llm-for-retry-timing.md)
+- [How recovery is measured](explanation/the-evidence-model.md) — three arms,
+  bootstrap intervals, and why the agent currently loses
+- [Compliance](explanation/compliance.md) — DPDPA, RBI, and the state of UAP
+
+## Architecture decision records
+
+- [**All 13 decisions**](adr/) — each with the alternatives that lost, and the
+  ones that turned out to be wrong
+
+---
+
+## Elsewhere in the repository
+
+| File | What it is |
+|---|---|
+| [`../README.md`](../README.md) | The front door: problem, thesis, results, limitations |
+| [`../REVIEWING.md`](../REVIEWING.md) | A guided path for someone assessing this |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Setup, the non-negotiable rules, and style |
+| [`../SECURITY.md`](../SECURITY.md) | What this codebase does with sensitive data |
+| [`board.html`](board.html) | A visual build board — open it in a browser |
+| [`../scripts/tour.py`](../scripts/tour.py) | The whole system in one terminal run |

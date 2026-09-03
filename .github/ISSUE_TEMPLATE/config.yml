@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Assessing this as a submission?
+    url: https://github.com/rohanbatrain/anvil/blob/main/REVIEWING.md
+    about: A guided path through the codebase in five, fifteen and thirty minutes.
+  - name: Security issue
+    url: https://github.com/rohanbatrain/anvil/security/advisories/new
+    about: Please report privately rather than in a public issue.

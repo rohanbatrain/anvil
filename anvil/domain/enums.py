@@ -26,7 +26,7 @@ class RunMode(StrEnum):
 class FailureClass(StrEnum):
     """The closed set of recovery postures a debit failure can map to.
 
-    See ``docs/ARCHITECTURE.md`` section 7. This is the *only* vocabulary the
+    See ``docs/explanation/architecture.md`` section 7. This is the *only* vocabulary the
     classifier may emit; unrecognised issuer codes fall to ``UNKNOWN`` rather
     than expanding the set.
     """

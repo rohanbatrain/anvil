@@ -7,7 +7,7 @@ the whole thing stops being evidence.
 Every statement here describes code in this repository. Where a number appears it is from
 a run named in the text, not from an estimate.
 
-Read alongside `docs/ARCHITECTURE.md` §11, which states the design intent. This document
+Read alongside `docs/explanation/architecture.md` §11, which states the design intent. This document
 states the implementation.
 
 ---

@@ -39,7 +39,7 @@ class AnvilError(Exception):
 
 
 class InvariantViolation(AnvilError):
-    """A financial invariant from ARCHITECTURE.md section 6 was broken.
+    """A financial invariant from docs/explanation/architecture.md section 6 was broken.
 
     These are never caught and handled -- they abort the transaction and page a
     human. A system that silently recovers from an unbalanced ledger is a system

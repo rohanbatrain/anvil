@@ -13,7 +13,7 @@ of ``(merchant, code, customer)``. Creating the chart is therefore idempotent
 without a read-modify-write: the same tuple always yields the same primary key,
 so a concurrent second call collides and does nothing. It also means a seeded
 demo reproduces byte-identical account rows, which is what lets the reproducibility
-claim in ``docs/ARCHITECTURE.md`` section 14 be literally true. The price is that
+claim in ``docs/explanation/architecture.md`` section 14 be literally true. The price is that
 account ids no longer sort chronologically; nothing in the system orders accounts
 by id, so that price is never actually paid.
 

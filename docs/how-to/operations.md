@@ -1,7 +1,7 @@
 # Anvil — Operations
 
 Setup, configuration and day-to-day operation. `README.md` explains what Anvil does and why;
-`docs/ARCHITECTURE.md` explains how it is built. This document explains how to run it.
+`docs/explanation/architecture.md` explains how it is built. This document explains how to run it.
 
 Everything below describes what the code in this repository actually does today. Where a target,
 service or module is declared but not yet implemented, that is stated rather than glossed over.

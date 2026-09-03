@@ -21,40 +21,77 @@ class Settings(BaseSettings):
     )
 
     # --- runtime -----------------------------------------------------------
-    mode: RunMode = RunMode.OFFLINE
-    env: Literal["local", "ci", "demo"] = "local"
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    log_format: Literal["console", "json"] = "console"
+    mode: RunMode = Field(
+        default=RunMode.OFFLINE,
+        description="offline needs no credentials at all; live requires all four below.",
+    )
+    env: Literal["local", "ci", "demo"] = Field(
+        default="local", description="Where this process is running."
+    )
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="INFO", description="Minimum level rendered."
+    )
+    log_format: Literal["console", "json"] = Field(
+        default="console", description="json for aggregation, console for reading."
+    )
 
     #: Every stochastic component derives from this. Same seed, same batch.
-    seed: int = 20260902
+    seed: int = Field(
+        default=20260902,
+        description="Every stochastic component derives from this. Same seed, same batch.",
+    )
 
     # --- infrastructure ----------------------------------------------------
-    database_url: str = "postgresql+asyncpg://anvil:anvil@localhost:5432/anvil"
-    redis_url: str = "redis://localhost:6379/0"
-    db_pool_size: int = 20
-    db_max_overflow: int = 10
-    db_statement_timeout_ms: int = 15_000
+    database_url: str = Field(
+        default="postgresql+asyncpg://anvil:anvil@localhost:5432/anvil",
+        description="Needed only for migrations and integration tests.",
+    )
+    redis_url: str = Field(
+        default="redis://localhost:6379/0", description="Reserved; not yet required."
+    )
+    db_pool_size: int = Field(default=20, description="Connections held open per process.")
+    db_max_overflow: int = Field(default=10, description="Extra connections under burst.")
+    db_statement_timeout_ms: int = Field(
+        default=15_000, description="Server-side cap, so a runaway query cannot hold a worker."
+    )
 
     # --- live-mode credentials --------------------------------------------
-    razorpay_key_id: str = ""
-    razorpay_key_secret: SecretStr = SecretStr("")
-    razorpay_webhook_secret: SecretStr = SecretStr("")
-    anthropic_api_key: SecretStr = SecretStr("")
+    razorpay_key_id: str = Field(default="", description="Test-mode key id, rzp_test_...")
+    razorpay_key_secret: SecretStr = Field(
+        default=SecretStr(""), description="Shown once by the dashboard."
+    )
+    razorpay_webhook_secret: SecretStr = Field(
+        default=SecretStr(""), description="Signs inbound webhooks; you choose this value."
+    )
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""), description="Unset in offline mode; fixtures are used instead."
+    )
 
     # --- models -------------------------------------------------------------
-    model_planner: str = "claude-opus-5"
-    model_classifier: str = "claude-sonnet-5"
-    model_composer: str = "claude-sonnet-5"
+    model_planner: str = Field(
+        default="claude-opus-5", description="Planning: judgement under a live budget."
+    )
+    model_classifier: str = Field(
+        default="claude-sonnet-5", description="High-volume classification of unmapped codes."
+    )
+    model_composer: str = Field(
+        default="claude-sonnet-5", description="Customer-facing copy, per language and cause."
+    )
 
     # --- guardrails ---------------------------------------------------------
-    webhook_tolerance_seconds: int = 300
-    llm_max_retries: int = 3
-    llm_timeout_seconds: int = 60
-    llm_max_output_tokens: int = 4096
+    webhook_tolerance_seconds: int = Field(
+        default=300, description="Replay window. A payload older than this is rejected."
+    )
+    llm_max_retries: int = Field(
+        default=3, description="Retries on malformed structured output, with the error appended."
+    )
+    llm_timeout_seconds: int = Field(default=60, description="Per model call.")
+    llm_max_output_tokens: int = Field(default=4096, description="Ceiling per model call.")
 
     # --- paths ---------------------------------------------------------------
-    fixtures_dir: str = "anvil/llm/fixtures"
+    fixtures_dir: str = Field(
+        default="anvil/llm/fixtures", description="Recorded model responses used in offline mode."
+    )
 
     @field_validator("seed")
     @classmethod
