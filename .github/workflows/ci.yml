@@ -31,6 +31,14 @@ jobs:
           ruff check anvil tests scripts
           ruff format --check anvil tests scripts
 
+      # The deploy scripts run as a privileged user on a public host. They get
+      # linted like everything else; shellcheck found four real defects the
+      # first time it was pointed at them.
+      - name: Shell scripts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck deploy/*.sh
+
       - name: Types
         run: mypy anvil
         continue-on-error: true

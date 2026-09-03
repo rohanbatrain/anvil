@@ -1,10 +1,14 @@
 name: Deploy
 
-# Deploys the public demonstration to anvil.rohanbatra.in.
+# Deploys the public demonstration to anvil.rohanbatra.in on a VPS.
 #
 # Only after CI passes on main. A demonstration that is broken in front of a
 # reviewer is worse than one that is a commit behind, so this gate is not
 # negotiable.
+#
+# The workflow does almost nothing itself: it opens an SSH session and runs
+# deploy/deploy.sh, which is the same script a human runs by hand. One code
+# path, so the manual and automated routes cannot drift apart.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -18,7 +22,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: fly.io
+    name: vps
     runs-on: ubuntu-latest
     # workflow_run fires on failure too; deploying a red build would defeat the
     # point of gating on CI at all.
@@ -29,18 +33,26 @@ jobs:
       name: production
       url: https://anvil.rohanbatra.in
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Authorise
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host key rather than StrictHostKeyChecking=no, which accepts
+          # whatever answers and turns a DNS hijack into a shell.
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=15 \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "bash /opt/anvil/repo/deploy/deploy.sh origin/main"
 
-      # A deploy that reports success while the site is down is worse than a
-      # deploy that fails loudly.
-      - name: Verify the deployment answers
+      # deploy.sh already health-checks and rolls back on the server. These
+      # verify the same thing from outside, through Caddy and TLS, which is the
+      # path a reviewer actually takes.
+      - name: It answers over TLS
         run: |
           for i in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w "%{http_code}" https://anvil.rohanbatra.in/health || true)
@@ -49,20 +61,23 @@ jobs:
           done
           echo "::error::health check never returned 200"; exit 1
 
-      - name: Confirm the console is credential-gated
+      - name: The console is credential-gated
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" https://anvil.rohanbatra.in/)
-          if [ "$code" != "401" ]; then
-            echo "::error::console returned $code, expected 401 — it is not gated"
-            exit 1
-          fi
-          echo "console correctly requires credentials"
+          [ "$code" = "401" ] || { echo "::error::console returned $code, expected 401"; exit 1; }
+          echo "console requires credentials"
 
-      - name: Confirm no payment credentials are present
+      - name: No payment credentials are present
         run: |
-          mode=$(curl -s https://anvil.rohanbatra.in/health | grep -o '"mode":"[^"]*"' || true)
-          echo "$mode"
-          if ! echo "$mode" | grep -q offline; then
-            echo "::error::deployed instance is not in offline mode"
-            exit 1
-          fi
+          body=$(curl -s https://anvil.rohanbatra.in/health)
+          echo "$body"
+          echo "$body" | grep -q '"mode":"offline"' \
+            || { echo "::error::deployed instance is not in offline mode"; exit 1; }
+
+      - name: Security headers are set
+        run: |
+          h=$(curl -sD - -o /dev/null https://anvil.rohanbatra.in/health)
+          for want in "strict-transport-security" "x-content-type-options" "x-frame-options"; do
+            echo "$h" | grep -qi "$want" || { echo "::error::missing $want"; exit 1; }
+          done
+          echo "headers present"

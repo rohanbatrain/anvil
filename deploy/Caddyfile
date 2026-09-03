@@ -1,0 +1,45 @@
+# Caddy configuration for anvil.rohanbatra.in
+#
+# Caddy is here rather than nginx for one reason: it obtains and renews the
+# certificate itself, with no cron job to forget and no renewal that fails
+# silently three months from now.
+#
+# Install to /etc/caddy/Caddyfile, then: systemctl reload caddy
+
+anvil.rohanbatra.in {
+	# Automatic HTTPS. Caddy solves the ACME challenge on port 80 and redirects
+	# everything there to 443 by itself.
+	encode zstd gzip
+
+	# The application is bound to loopback, so this is the only way in.
+	reverse_proxy 127.0.0.1:8000 {
+		# Uvicorn is started with --forwarded-allow-ips=127.0.0.1, so it trusts
+		# these headers from Caddy and nothing else. Without that pairing the
+		# rate limiter could be defeated by a spoofed X-Forwarded-For.
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+
+		# The batch endpoint runs a real experiment. Do not give up on it.
+		transport http {
+			read_timeout 120s
+		}
+	}
+
+	header {
+		# The application sets its own CSP, HSTS, framing and referrer policy in
+		# anvil/api/security.py. Duplicating them here would create two places
+		# to change and a chance for them to disagree. These two are Caddy's
+		# job because they are about the server, not the application.
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	# Structured, so it can be shipped somewhere later without reformatting.
+	log {
+		output file /var/log/caddy/anvil.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+		format json
+	}
+}

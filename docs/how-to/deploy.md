@@ -1,26 +1,26 @@
 # How to deploy the public demonstration
 
-Target: **https://anvil.rohanbatra.in**
+Target: **https://anvil.rohanbatra.in**, on a VPS running Ubuntu 22.04 or 24.04.
 
 ## The security posture, first
 
 Everything below follows from one decision, and it is worth understanding before
-you run any of it.
+running any of it.
 
 **The public instance holds no payment credentials at all.** It runs in offline
-mode against the seeded simulator. It cannot leak a Razorpay key because there is
-none on the machine, and it cannot move money because nothing is wired to a
-payment API. The only secret it holds is the console password, which protects the
-demonstration and nothing else.
+mode against the seeded simulator. It cannot leak a Razorpay key because there
+is none on the machine, and it cannot move money because nothing is wired to a
+payment API. The only secret it holds is the console password, which protects
+the demonstration and nothing else.
 
 Live mode and webhooks stay **local, behind a temporary tunnel**, only while you
 are testing. A permanently public endpoint holding real credentials is a
 liability with no upside for a demonstration.
 
-The deploy workflow enforces this: it fails the build if the deployed instance
-reports anything other than `offline`.
+Both `deploy/deploy.sh` and the CI workflow **fail the deploy** if the running
+instance reports anything other than `offline`.
 
-| | Local `.env` | Deployed host |
+| | Local `.env` | The VPS |
 |---|---|---|
 | Razorpay key id / secret | yes, for testing | **never** |
 | Razorpay webhook secret | yes, for testing | **never** |
@@ -28,97 +28,137 @@ reports anything other than `offline`.
 | `ANVIL_CONSOLE_PASSWORD` | not needed | **yes** — the only secret |
 | `ANVIL_MODE` | `live` while testing | `offline` |
 
+## What gets installed, and why
+
+| Piece | Choice | Why |
+|---|---|---|
+| Process supervision | **systemd**, not Docker | Fewer moving parts, and Docker has failed twice on this project. `journalctl -u anvil` is the whole story. |
+| TLS and reverse proxy | **Caddy**, not nginx + certbot | Caddy obtains and renews the certificate itself. No cron job to forget, no renewal that fails silently in three months. |
+| Binding | **127.0.0.1 only** | Caddy proxies over loopback. The application is unreachable from the network even if the firewall is wrong — a service protected only by a firewall rule is protected by one mistake. |
+| Releases | **timestamped directories, atomic symlink** | A failed build leaves the running version untouched. Rollback is a symlink swap. |
+
 ---
 
-## Pre-flight
+## 1. Prepare the server
+
+SSH in as root (or with sudo) and run the bootstrap once:
 
 ```bash
-make lint          # ruff + mypy
-make test          # 203 tests
-make batch         # the experiment still runs
-docker build -t anvil:local .
-docker run --rm -p 8000:8000 -e ANVIL_CONSOLE_PASSWORD=test anvil:local
+git clone https://github.com/rohanbatrain/anvil.git /tmp/anvil
+sudo bash /tmp/anvil/deploy/bootstrap.sh
 ```
 
-Then, against the container:
+Override the domain if it differs:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/          # 401
-curl -s -o /dev/null -w "%{http_code}\n" -u reviewer:test http://localhost:8000/  # 200
-curl -s http://localhost:8000/health                                     # 200, mode offline
+sudo ANVIL_DOMAIN=anvil.example.com bash /tmp/anvil/deploy/bootstrap.sh
 ```
 
-If the first is not `401`, stop. The console is not gated and must not be
-published.
+It is idempotent — safe to re-run after a change. What it does:
 
-## Deploy
+- installs Python, build tools, Caddy, `ufw`, `fail2ban` and unattended security
+  upgrades
+- creates a **service account** `anvil` with no shell and no home, which exists
+  to own a process rather than to be used
+- creates a **deploy account** `deploy` whose passwordless sudo is scoped to two
+  commands — `systemctl restart anvil` and `systemctl status anvil`. A
+  compromised CI token can restart a service; it cannot own the box.
+- creates `/etc/anvil/anvil.env` mode `640`, root-owned, readable by the service
+  account, populated with the offline defaults
+- installs the systemd unit and the Caddy site
+- **firewall: 22, 80, 443 only.** Port 8000 is deliberately not opened.
+- **SSH: keys only, no root login,** three auth attempts
+
+## 2. Set the console password
+
+The one secret on the box. It is never in the repository and never in the unit
+file, which is world-readable.
 
 ```bash
-brew install flyctl        # or: curl -L https://fly.io/install.sh | sh
-flyctl auth login
-flyctl launch --no-deploy --copy-config --name anvil-rohanbatra
+sudo sed -i "s/CHANGE_ME/$(openssl rand -base64 24 | tr -d '/+=')/" /etc/anvil/anvil.env
+sudo grep CONSOLE_PASSWORD /etc/anvil/anvil.env      # note it down
 ```
 
-Set the one secret. It goes in Fly's encrypted secret store, never in
-`fly.toml`:
+That value goes in your submission so reviewers can get in.
 
-```bash
-flyctl secrets set ANVIL_CONSOLE_PASSWORD="$(python3 -c 'import secrets;print(secrets.token_urlsafe(18))')"
-flyctl secrets list        # confirms the name, never the value
-flyctl deploy
-```
-
-Verify there is nothing else in there:
-
-```bash
-flyctl secrets list        # ANVIL_CONSOLE_PASSWORD and nothing else
-```
-
-## The domain
-
-```bash
-flyctl ips allocate-v4 --shared
-flyctl ips allocate-v6
-flyctl certs create anvil.rohanbatra.in
-flyctl certs show anvil.rohanbatra.in     # prints the records to add
-```
+## 3. Point DNS at the server
 
 At your DNS provider for `rohanbatra.in`:
 
 | Type | Name | Value |
 |---|---|---|
-| `A` | `anvil` | the IPv4 from `flyctl ips list` |
-| `AAAA` | `anvil` | the IPv6 from `flyctl ips list` |
+| `A` | `anvil` | the server's IPv4 |
+| `AAAA` | `anvil` | the server's IPv6, if it has one |
 
-Fly issues the certificate automatically once the records resolve — usually a
-few minutes, occasionally an hour. `flyctl certs show` reports progress.
+`curl -s4 ifconfig.me` on the server prints the IPv4.
 
-If you use Cloudflare, set the records to **DNS only** (grey cloud) until the
-certificate issues. Proxying before issuance makes the ACME challenge fail in a
-way that is tedious to diagnose.
+Caddy obtains the certificate automatically once the record resolves — usually
+under a minute, occasionally longer. Until then it retries and logs the failure,
+which is the expected state rather than a fault.
 
-## Continuous deployment
+**Using Cloudflare?** Set the record to **DNS only** (grey cloud) until the
+certificate issues. Proxying beforehand makes the ACME challenge fail in a way
+that is tedious to diagnose.
 
-`.github/workflows/deploy.yml` deploys on every green CI run on `main`. It needs
-one repository secret:
+## 4. First deploy
 
 ```bash
-flyctl tokens create deploy -x 8760h
-# GitHub → Settings → Secrets and variables → Actions → New repository secret
-#   Name:  FLY_API_TOKEN
-#   Value: the token
+sudo -u deploy bash /opt/anvil/repo/deploy/deploy.sh
 ```
 
-The workflow will not deploy a red build, and after deploying it checks three
-things: that `/health` returns 200, that `/` returns **401** (the console is
-gated), and that the instance reports `offline` mode. Any of those failing fails
-the deploy.
+The script builds a release, installs dependencies, and then — before promoting
+anything — **runs the unit suite and the guided tour against the new code**. A
+release whose own tests fail is never promoted. Only then does
+`/opt/anvil/current` move, and the service restart follows.
+
+If the health check does not pass within a minute it **rolls back to the
+previous release by itself** and exits non-zero.
+
+## 5. Continuous deployment
+
+`.github/workflows/deploy.yml` runs on every green CI run on `main`. It opens an
+SSH session and runs the same `deploy/deploy.sh` a human would — one code path,
+so the manual and automated routes cannot drift.
+
+Generate a key for CI, on your machine:
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-anvil" -f ~/.ssh/anvil_deploy -N ""
+cat ~/.ssh/anvil_deploy.pub     # the public half
+```
+
+Authorise it on the server:
+
+```bash
+echo 'ssh-ed25519 AAAA... github-actions-anvil' \
+  | sudo tee -a /home/deploy/.ssh/authorized_keys
+```
+
+Capture the host key so CI can pin it rather than accepting whatever answers:
+
+```bash
+ssh-keyscan -H anvil.rohanbatra.in 2>/dev/null
+```
+
+Then add four **repository secrets** under GitHub → Settings → Secrets and
+variables → Actions:
+
+| Secret | Value |
+|---|---|
+| `DEPLOY_SSH_KEY` | the whole private key, `~/.ssh/anvil_deploy` |
+| `DEPLOY_KNOWN_HOSTS` | the `ssh-keyscan` output |
+| `DEPLOY_HOST` | `anvil.rohanbatra.in` |
+| `DEPLOY_USER` | `deploy` |
+
+`DEPLOY_KNOWN_HOSTS` is not optional politeness: without it the workflow would
+need `StrictHostKeyChecking=no`, which accepts whatever answers and turns a DNS
+hijack into a shell on your server.
 
 ---
 
 ## Post-deploy checklist
 
-Run through this once, and again before you send the link to anyone.
+Run this once, and again before sending the link to anyone.
 
 **It works**
 
@@ -128,53 +168,76 @@ Run through this once, and again before you send the link to anyone.
 - [ ] Approval inbox lists paused cases; approving one resumes the graph
 - [ ] Recovery cockpit renders the batch, including the honest limitations
 - [ ] Retry scheduler responds to a changed failure date
-- [ ] Policy evaluator returns a trace
+- [ ] Policy evaluator returns a rule-by-rule trace
 - [ ] Classifier: `U30` resolves, `switch busy` escalates
 - [ ] Ledger postings balance
 - [ ] `/docs` renders the OpenAPI
 
 **It is safe**
 
-- [ ] `flyctl secrets list` shows `ANVIL_CONSOLE_PASSWORD` and nothing else
-- [ ] `/health` reports `offline`
+- [ ] `sudo grep -c RAZORPAY /etc/anvil/anvil.env` returns `0`
+- [ ] `sudo grep -c ANTHROPIC /etc/anvil/anvil.env` returns `0`
+- [ ] `sudo ss -tlnp | grep 8000` shows `127.0.0.1:8000`, **not** `0.0.0.0:8000`
+- [ ] `sudo ufw status` allows only 22, 80, 443
 - [ ] `curl https://anvil.rohanbatra.in/robots.txt` disallows everything
-- [ ] Security headers present: CSP, HSTS, `X-Frame-Options`, `nosniff`
+- [ ] Headers present: HSTS, CSP, `X-Frame-Options`, `nosniff`
 - [ ] Thirteen rapid `/api/batch` calls produce a `429`
-- [ ] `git log -p | grep -i "rzp_test\|sk-ant"` finds nothing
-- [ ] The repository contains no `.env`
+- [ ] `curl -sI http://<server-ip>:8000/` from your laptop **fails to connect**
+- [ ] `sudo -u deploy sudo -l` lists only the two systemctl commands
+- [ ] `git log -p | grep -iE "rzp_(test|live)_|sk-ant-"` finds nothing real
+- [ ] `ssh root@…` is refused
 
 **It presents well**
 
-- [ ] Custom domain resolves and the certificate is valid
-- [ ] Dark and light themes both render correctly
-- [ ] It is usable on a laptop screen without horizontal scrolling
-- [ ] The README links to the live URL and states the credentials
+- [ ] The certificate is valid and the padlock is clean
+- [ ] Dark and light themes both render
+- [ ] Usable on a laptop without horizontal scrolling
+- [ ] The README states the live URL and the credentials
 - [ ] `REVIEWING.md` routes a reviewer through it in fifteen minutes
 
-## Rollback
+---
+
+## Operating it
 
 ```bash
-flyctl releases                    # list
-flyctl releases rollback <version>
-```
-
-## Watching it
-
-```bash
-flyctl logs           # structured JSON, redacted at the boundary
-flyctl status
-flyctl dashboard
+sudo systemctl status anvil
+sudo journalctl -u anvil -f              # structured JSON, redacted at source
+sudo journalctl -u anvil -n 200 --no-pager
+sudo systemctl restart anvil
+sudo systemctl reload caddy              # after editing /etc/caddy/Caddyfile
+sudo journalctl -u caddy -n 50           # certificate problems show up here
 ```
 
 Logs pass through the redaction processor in `anvil/core/logging.py`, so a
-sensitive key cannot reach the aggregator even if something tries to log one.
+sensitive key cannot reach the journal even if something tries to log one.
+
+### Rollback
+
+```bash
+sudo -u deploy bash /opt/anvil/repo/deploy/rollback.sh                 # previous
+ls -1 /opt/anvil/releases                                              # pick one
+sudo -u deploy bash /opt/anvil/repo/deploy/rollback.sh 20260903-101500-a1b2c3
+```
+
+The last five releases are kept on disk, so a rollback needs no network.
+
+### When something is wrong
+
+| Symptom | Look at |
+|---|---|
+| 502 from Caddy | `journalctl -u anvil -n 80` — the app is down or still starting |
+| Certificate never issues | `journalctl -u caddy -n 50`, then check DNS resolves and 80 is open |
+| 401 with the right password | `sudo grep CONSOLE /etc/anvil/anvil.env`, then restart |
+| Console open with no prompt | `ANVIL_CONSOLE_PASSWORD` is unset — the startup log warns about this |
+| Deploy rolls itself back | `journalctl -u anvil -n 80`; the new release failed its health check |
+| Out of memory | `MemoryMax=768M` in the unit; the batch is the heavy part |
 
 ---
 
 ## Later: webhooks against live Razorpay
 
-**Local only.** Do not point Razorpay at the public instance — it has no webhook
-secret and no credentials, and giving it any would undo the entire posture above.
+**Local only.** Do not point Razorpay at the VPS — it has no webhook secret and
+no credentials, and giving it any would undo the entire posture above.
 
 ```bash
 # terminal 1
@@ -185,7 +248,7 @@ ngrok http 8000
 ```
 
 Set the webhook URL in the Razorpay dashboard to
-`https://<your-ngrok-host>/webhooks/razorpay` with the same secret you put in
+`https://<your-ngrok-host>/webhooks/razorpay`, with the same secret you put in
 `.env`, and subscribe to `payment.failed`, `payment.captured`,
 `payment.authorized`, `subscription.charged`, `subscription.pending` and
 `subscription.halted`.

@@ -1,0 +1,91 @@
+# systemd unit for the Anvil console.
+#
+# Two things about this file matter more than the rest.
+#
+# It binds 127.0.0.1, not 0.0.0.0. Caddy terminates TLS and proxies to it on
+# the loopback, so the application is not reachable from the network even if the
+# firewall is misconfigured. A service that is only protected by a firewall rule
+# is protected by one mistake.
+#
+# The hardening directives below are not decoration. This process parses
+# untrusted input and, in live mode, holds payment credentials; the cost of
+# ProtectSystem=strict is one ReadWritePaths line and the benefit is that a
+# remote-code-execution bug cannot write to /usr or read another service's
+# secrets.
+
+[Unit]
+Description=Anvil recovery control plane
+Documentation=https://github.com/rohanbatrain/anvil
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=anvil
+Group=anvil
+WorkingDirectory=/opt/anvil/current
+
+# Secrets live in a file readable only by root and this service, never in the
+# unit (which is world-readable) and never in the environment of a shell.
+EnvironmentFile=/etc/anvil/anvil.env
+
+ExecStart=/opt/anvil/venv/bin/uvicorn anvil.main_api:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1 \
+    --no-server-header
+
+# The console builds its seeded world and a queue of paused graphs at startup,
+# so give it room before declaring failure.
+TimeoutStartSec=90
+Restart=always
+RestartSec=5
+# Five failures in a minute means the problem is not transient; stop flapping
+# and leave the unit failed so it is visible rather than endlessly restarting.
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# --- hardening ---------------------------------------------------------------
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RemoveIPC=true
+# The application writes nothing outside its own runtime directory. If a future
+# feature needs a path, add it here explicitly rather than loosening the above.
+ReadWritePaths=/var/lib/anvil
+RuntimeDirectory=anvil
+StateDirectory=anvil
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# The batch experiment simulates thousands of subscriptions. This is generous
+# for the workload and small enough that a leak cannot take the box down.
+MemoryMax=768M
+TasksMax=256
+
+# journald, so `journalctl -u anvil` is the whole story. Log lines are already
+# redacted at the boundary by anvil/core/logging.py.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=anvil
+
+[Install]
+WantedBy=multi-user.target
