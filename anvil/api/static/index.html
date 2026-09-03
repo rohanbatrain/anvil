@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anvil — recovery control plane</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c2410c'/%3E%3Cpath d='M7 20h18l-3-5H10z' fill='%23fff'/%3E%3Crect x='13' y='20' width='6' height='5' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+/* Design system: docs/DESIGN.md. Light complete on bare :root; dark redefined
+   twice so the toggle wins in both directions and system default still works. */
+:root{
+  --canvas:#faf9f7;--surface:#fff;--sunken:#f2f0ec;--raised:#fff;
+  --hairline:#e4e0d9;--hairline-strong:#cfc9c0;
+  --ink:#14120f;--ink-muted:#6e6862;--ink-faint:#9a938b;
+  --accent:#c2410c;--accent-hot:#ea580c;--accent-wash:#fbede6;
+  --ok:#1f6b4d;--ok-wash:#e7f2ec;--warn:#8a5a00;--warn-wash:#fbf3db;
+  --risk:#a32f2b;--risk-wash:#fbeaea;--info:#1f5f8f;--info-wash:#e4f1fb;
+  --ui:'Space Grotesk','SF Pro Display',ui-sans-serif,system-ui,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+  --read:'Newsreader',Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --canvas:#0c0b0a;--surface:#141311;--sunken:#0f0e0d;--raised:#1c1a18;
+  --hairline:#2a2724;--hairline-strong:#3a3632;
+  --ink:#f0ede8;--ink-muted:#9c948b;--ink-faint:#6b645d;
+  --accent:#f97316;--accent-hot:#fb923c;--accent-wash:#2a1710;
+  --ok:#4ade9b;--ok-wash:#10231a;--warn:#fbbf57;--warn-wash:#241c0c;
+  --risk:#f87171;--risk-wash:#2a1414;--info:#7dd3fc;--info-wash:#0f1e29;
+  color-scheme:dark;}}
+:root[data-theme=dark]{
+  --canvas:#0c0b0a;--surface:#141311;--sunken:#0f0e0d;--raised:#1c1a18;
+  --hairline:#2a2724;--hairline-strong:#3a3632;
+  --ink:#f0ede8;--ink-muted:#9c948b;--ink-faint:#6b645d;
+  --accent:#f97316;--accent-hot:#fb923c;--accent-wash:#2a1710;
+  --ok:#4ade9b;--ok-wash:#10231a;--warn:#fbbf57;--warn-wash:#241c0c;
+  --risk:#f87171;--risk-wash:#2a1414;--info:#7dd3fc;--info-wash:#0f1e29;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--ui);
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.num,[data-num],td.r,th.r{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em}
+.micro{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--ink-faint)}
+h1,h2,h3{margin:0;text-wrap:balance}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--hairline);border-radius:6px;padding:7px 10px}
+input:focus,select:focus{border-color:var(--accent);outline:none}
+
+/* shell */
+.shell{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+.rail{border-right:1px solid var(--hairline);background:var(--surface);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:18px 20px 16px;border-bottom:1px solid var(--hairline)}
+.brand .n{font-size:20px;font-weight:700;letter-spacing:-.03em}
+.brand .t{font-size:11px;color:var(--ink-faint);margin-top:2px}
+nav{padding:10px 8px;flex:1;overflow-y:auto}
+nav button{display:block;width:100%;text-align:left;background:none;border:none;
+  color:var(--ink-muted);padding:9px 12px;border-radius:6px;margin-bottom:1px;
+  transition:background-color 120ms var(--ease),color 120ms var(--ease)}
+nav button:hover{background:var(--sunken);color:var(--ink)}
+nav button.on{background:var(--accent-wash);color:var(--accent);font-weight:500}
+nav .grp{padding:14px 12px 6px}
+.railfoot{padding:12px 16px;border-top:1px solid var(--hairline);font-size:11px;color:var(--ink-faint)}
+
+main{min-width:0}
+.top{height:52px;border-bottom:1px solid var(--hairline);background:var(--surface);
+  display:flex;align-items:center;gap:14px;padding:0 24px;position:sticky;top:0;z-index:5}
+.top h2{font-size:15px;font-weight:500;letter-spacing:-.01em}
+.top .sp{margin-left:auto;display:flex;align-items:center;gap:10px}
+.body{padding:24px}
+
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;font-weight:500;white-space:nowrap}
+.p-ok{background:var(--ok-wash);color:var(--ok)}
+.p-warn{background:var(--warn-wash);color:var(--warn)}
+.p-risk{background:var(--risk-wash);color:var(--risk)}
+.p-info{background:var(--info-wash);color:var(--info)}
+.p-acc{background:var(--accent-wash);color:var(--accent)}
+.p-mute{background:var(--sunken);color:var(--ink-faint)}
+
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px}
+.card>h3{padding:14px 18px;border-bottom:1px solid var(--hairline);font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+.card>.in{padding:18px}
+.grid{display:grid;gap:16px}
+.bezel{background:var(--sunken);border:1px solid var(--hairline);border-radius:12px;padding:6px}
+.bezel>.core{background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:22px}
+
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+th{text-align:left;padding:10px 14px;border-bottom:1px solid var(--hairline);
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+  font-weight:500;white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+td{padding:9px 14px;border-bottom:1px solid var(--hairline);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background-color 120ms var(--ease)}
+tbody tr:hover{background:var(--sunken)}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.dim{color:var(--ink-faint)}
+.mono{font-family:var(--mono);font-size:12px}
+.read{font-family:var(--read);font-size:15px;line-height:1.65;max-width:68ch;color:var(--ink-muted)}
+
+.btn{border:1px solid var(--hairline);background:var(--surface);color:var(--ink);
+  padding:8px 14px;border-radius:6px;transition:all 120ms var(--ease)}
+.btn:hover{background:var(--sunken)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn-primary:hover{opacity:.88;background:var(--ink)}
+.btn-danger{color:var(--risk);border-color:var(--hairline)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:13px}
+.kv dt{color:var(--ink-faint)}
+.kv dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.bar{height:6px;background:var(--sunken);border-radius:3px;overflow:hidden;min-width:80px}
+.bar>i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.spark{display:flex;align-items:flex-end;gap:2px;height:64px}
+.spark>i{flex:1;background:var(--hairline-strong);border-radius:1px 1px 0 0;min-height:2px;
+  transition:background-color 120ms var(--ease)}
+.spark>i.hot{background:var(--accent)}
+
+.empty{padding:40px 18px;text-align:center;color:var(--ink-faint);font-size:13px}
+.note{padding:12px 14px;border-radius:6px;font-size:13px;line-height:1.55;margin-bottom:14px}
+.note-warn{background:var(--warn-wash);color:var(--warn)}
+.note-risk{background:var(--risk-wash);color:var(--risk)}
+.note-info{background:var(--info-wash);color:var(--info)}
+.note-acc{background:var(--accent-wash);color:var(--accent)}
+
+.limits li{margin-bottom:9px;line-height:1.55;color:var(--ink-muted)}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:900px){.shell{grid-template-columns:1fr}.rail{position:static;height:auto}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand"><div class="n">Anvil</div><div class="t">recovery control plane</div></div>
+    <nav id="nav">
+      <div class="micro grp">Operate</div>
+      <button data-v="approvals" class="on">Approval inbox</button>
+      <button data-v="cockpit">Recovery cockpit</button>
+      <button data-v="cases">At-risk cases</button>
+      <div class="micro grp">Interrogate</div>
+      <button data-v="scheduler">Retry scheduler</button>
+      <button data-v="policy">Policy engine</button>
+      <button data-v="classifier">Classifier</button>
+      <button data-v="ledger">Ledger</button>
+    </nav>
+    <div class="railfoot">
+      <div id="mode-line">connecting…</div>
+      <div style="margin-top:4px">seed <span class="num" id="seed-line">—</span></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <h2 id="title">Approval inbox</h2>
+      <div class="sp">
+        <span class="pill p-mute" id="mode-badge">OFFLINE</span>
+        <button class="btn" id="theme" title="Toggle theme">Theme</button>
+      </div>
+    </div>
+    <div class="body" id="view"></div>
+  </main>
+</div>
+
+<script>
+const $ = (s,r=document)=>r.querySelector(s);
+const el = (t,c,h)=>{const n=document.createElement(t);if(c)n.className=c;if(h!==undefined)n.innerHTML=h;return n;};
+const esc = s => String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const bps = v => (v/100).toFixed(1)+'%';
+const api = async (p,o)=>{const r=await fetch(p,o);if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||e.error?.message||r.statusText);}return r.json();};
+
+/* ---------- theme ---------- */
+const THEME_KEY='anvil.theme';
+try{const t=localStorage.getItem(THEME_KEY);if(t)document.documentElement.dataset.theme=t;}catch(e){}
+$('#theme').onclick=()=>{
+  const cur=document.documentElement.dataset.theme;
+  const next=cur==='dark'?'light':cur==='light'?'':'dark';
+  if(next)document.documentElement.dataset.theme=next;else delete document.documentElement.dataset.theme;
+  try{next?localStorage.setItem(THEME_KEY,next):localStorage.removeItem(THEME_KEY);}catch(e){}
+};
+
+/* ---------- shell ---------- */
+const TITLES={approvals:'Approval inbox',cockpit:'Recovery cockpit',cases:'At-risk cases',
+  scheduler:'Retry scheduler',policy:'Policy engine',classifier:'Failure classifier',ledger:'Ledger'};
+let view='approvals';
+$('#nav').onclick=e=>{const b=e.target.closest('button[data-v]');if(!b)return;
+  view=b.dataset.v;
+  [...$('#nav').querySelectorAll('button')].forEach(x=>x.classList.toggle('on',x===b));
+  $('#title').textContent=TITLES[view];render();};
+
+async function boot(){
+  try{
+    const h=await api('/health');
+    $('#mode-line').textContent=h.model;
+    $('#seed-line').textContent=h.seed;
+    const badge=$('#mode-badge');
+    badge.textContent=h.mode.toUpperCase();
+    badge.className='pill '+(h.mode==='live'?'p-ok':'p-mute');
+  }catch(e){$('#mode-line').textContent='API unreachable';}
+  render();
+}
+
+function loading(){$('#view').innerHTML='<div class="empty">Working…</div>';}
+function failed(e){$('#view').innerHTML=`<div class="note note-risk">Could not load: ${esc(e.message)}</div>`;}
+
+async function render(){
+  loading();
+  try{ await ({approvals:vApprovals,cockpit:vCockpit,cases:vCases,scheduler:vScheduler,
+    policy:vPolicy,classifier:vClassifier,ledger:vLedger}[view])(); }
+  catch(e){ failed(e); }
+}
+
+/* ---------- approval inbox ---------- */
+async function vApprovals(){
+  const items=await api('/api/approvals');
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-acc',
+    'Every item below is a <b>real LangGraph thread</b> paused on a committed checkpoint, not a mock row. '+
+    'Approving resumes that graph, which then runs authorisation, policy and the executor for real.'));
+
+  if(!items.length){
+    v.append(el('div','card','<div class="empty">Nothing awaiting approval. '+
+      'Every proposed action so far was either permitted by policy unattended, or refused before it reached a person.</div>'));
+    return;
+  }
+
+  items.forEach((it,i)=>{
+    const wrap=el('div', i===0?'bezel':'card'); wrap.style.marginBottom='14px';
+    const core=el('div', i===0?'core':'in');
+    core.innerHTML=`
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="pill p-warn">${esc(it.action_type)}</span>
+        <strong style="font-size:16px">${esc(it.customer_name)}</strong>
+        <span class="num" style="font-size:18px;font-weight:500">${esc(it.amount?.display||'—')}</span>
+        <span class="dim mono" style="margin-left:auto">${esc(it.case_id)}</span>
+      </div>
+      <dl class="kv" style="margin:0 0 14px">
+        <dt>at risk</dt><dd>${esc(it.at_risk.display)}</dd>
+        <dt>failure</dt><dd>${esc(it.failure_class||'unclassified')}</dd>
+        <dt>recovery likelihood</dt><dd>${it.recovery_likelihood??'—'} / 1000</dd>
+        <dt>churn risk</dt><dd>${it.churn_risk??'—'} / 1000</dd>
+        <dt>failed</dt><dd>${esc(it.requested_at)}</dd>
+      </dl>
+      <div class="micro">Why a human is being asked</div>
+      <div class="read" style="margin:4px 0 12px;font-size:14px">${esc(it.escalation_reason)}</div>
+      ${it.rationale?`<div class="micro">The agent's own reasoning</div>
+        <div class="read" style="margin:4px 0 14px;font-size:14px">${esc(it.rationale)}</div>`:''}
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" data-a="approve">Approve</button>
+        <button class="btn btn-danger" data-a="reject">Reject</button>
+        <label class="dim" style="display:flex;align-items:center;gap:6px;font-size:12.5px">
+          edit amount <input type="number" class="num" style="width:110px" placeholder="paise" data-edit>
+        </label>
+        <button class="btn" data-a="edit">Approve edited</button>
+        <span class="dim mono" style="margin-left:auto">v${it.version}</span>
+      </div>
+      <div data-out style="margin-top:14px"></div>`;
+
+    core.querySelectorAll('button[data-a]').forEach(btn=>{
+      btn.onclick=async()=>{
+        const out=core.querySelector('[data-out]');
+        const edited=core.querySelector('[data-edit]').value;
+        const decision=btn.dataset.a;
+        if(decision==='edit'&&!edited){out.innerHTML='<div class="note note-warn">Enter an amount in paise to approve an edited action.</div>';return;}
+        core.querySelectorAll('button').forEach(b=>b.disabled=true);
+        out.innerHTML='<div class="dim">Resuming the paused graph…</div>';
+        try{
+          const res=await api(`/api/approvals/${it.approval_id}`,{method:'POST',
+            headers:{'content-type':'application/json'},
+            body:JSON.stringify({decision,decided_by:'ops@merchant.example',
+              version:it.version, edited_amount_minor:decision==='edit'?Number(edited):null})});
+          out.innerHTML=`<div class="note ${res.recovered.minor>0?'note-info':'note-warn'}">
+              Case is now <b>${esc(res.case_status)}</b>, recovered ${esc(res.recovered.display)}.
+            </div>
+            <div class="micro" style="margin-bottom:6px">What the graph did after you decided</div>
+            ${res.timeline.slice(-6).map(t=>
+              `<div class="mono dim" style="padding:2px 0"><span style="display:inline-block;width:88px">${esc(t.node)}</span>${esc(t.summary)}</div>`).join('')}`;
+        }catch(e){
+          out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;
+          core.querySelectorAll('button').forEach(b=>b.disabled=false);
+        }
+      };
+    });
+    wrap.append(core); v.append(wrap);
+  });
+}
+
+/* ---------- cockpit ---------- */
+async function vCockpit(){
+  const withModel=$('#view').dataset.model==='1';
+  const d=await api(`/api/batch?size=2000&with_model=${withModel}`);
+  const v=$('#view'); v.innerHTML=''; v.dataset.model=withModel?'1':'0';
+
+  const anvil=d.arms.find(a=>a.arm==='anvil'), base=d.arms.find(a=>a.arm==='baseline');
+  const losing = anvil && base && base.rate_bps>anvil.rate_bps;
+
+  const hero=el('div','bezel'); hero.style.marginBottom='16px';
+  hero.innerHTML=`<div class="core">
+    <div class="micro">Money recovered by the agent, ${d.case_count} at-risk cases from a ${d.population_size.toLocaleString()} subscription book</div>
+    <div class="num" style="font-size:40px;font-weight:500;letter-spacing:-.02em;margin:6px 0 2px">${esc(anvil?.recovered.display||'—')}</div>
+    <div class="dim">of ${esc(anvil?.at_risk.display||'—')} at risk in its arm · net of costs ${esc(anvil?.net_recovered.display||'—')}</div>
+  </div>`;
+  v.append(hero);
+
+  if(losing){
+    v.append(el('div','note note-risk',
+      '<b>Naive fixed-schedule dunning is currently beating the agent on raw recovery rate.</b> '+
+      'This is reported rather than hidden. The calibration table below shows why: the retry curves are '+
+      'hand-written priors, not parameters fitted to this issuer.'));
+  }
+
+  const arms=el('div','card'); arms.innerHTML=`<h3>Per-arm outcomes</h3><div class="scroll"><table>
+    <thead><tr><th>Arm</th><th class="r">n</th><th class="r">Rate</th><th>95% interval</th>
+      <th class="r">Recovered</th><th class="r">Net</th><th class="r">Attempts</th></tr></thead>
+    <tbody>${d.arms.map(a=>`<tr>
+      <td>${esc(a.label)}</td><td class="r">${a.cases}</td>
+      <td class="r"><b>${bps(a.rate_bps)}</b></td>
+      <td class="num dim">[${bps(a.rate_ci_low_bps)}, ${bps(a.rate_ci_high_bps)}]</td>
+      <td class="r">${esc(a.recovered.display)}</td><td class="r">${esc(a.net_recovered.display)}</td>
+      <td class="r">${a.attempts}</td></tr>`).join('')}</tbody></table></div>`;
+  v.append(arms);
+
+  const cmp=el('div','card'); cmp.style.marginTop='16px';
+  cmp.innerHTML=`<h3>Lift, with its uncertainty</h3><div class="in">
+    ${d.comparisons.map(c=>`<div style="padding:12px 0;border-bottom:1px solid var(--hairline)">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <strong>${esc(c.treatment)} vs ${esc(c.against)}</strong>
+        <span class="num" style="font-size:17px;color:${c.difference_bps>=0?'var(--ok)':'var(--risk)'}">
+          ${c.difference_bps>=0?'+':''}${bps(c.difference_bps)}</span>
+        <span class="num dim">[${c.ci_low_bps>=0?'+':''}${bps(c.ci_low_bps)}, ${c.ci_high_bps>=0?'+':''}${bps(c.ci_high_bps)}]</span>
+        <span class="pill ${c.significant?(c.difference_bps>=0?'p-ok':'p-risk'):'p-warn'}">
+          ${c.significant?'significant':'not significant'}</span>
+      </div>
+      <div class="dim" style="margin-top:4px;font-size:12.5px">${esc(c.verdict)} · net ${esc(c.net_difference.display)} · z = ${c.z_score}</div>
+    </div>`).join('')}
+  </div>`;
+  v.append(cmp);
+
+  const cal=el('div','card'); cal.style.marginTop='16px';
+  cal.innerHTML=`<h3>Is the scheduler honest?</h3><div class="in">
+    <div class="read" style="margin-bottom:14px;font-size:14px">${esc(d.calibration_verdict)}</div>
+    ${d.calibration_buckets.length?`<div class="scroll"><table>
+      <thead><tr><th>Band</th><th class="r">n</th><th class="r">Predicted</th><th class="r">Observed</th><th class="r">Gap</th></tr></thead>
+      <tbody>${d.calibration_buckets.map(b=>`<tr>
+        <td class="mono">${esc(b.label)}</td><td class="r">${b.count}</td>
+        <td class="r">${bps(b.predicted_bps)}</td><td class="r">${bps(b.observed_bps)}</td>
+        <td class="r" style="color:${Math.abs(b.gap_bps)>1000?'var(--risk)':'var(--ink-muted)'}">
+          ${b.gap_bps>=0?'+':''}${bps(b.gap_bps)}</td></tr>`).join('')}</tbody></table></div>`:''}
+  </div>`;
+  v.append(cal);
+
+  const model=el('div','card'); model.style.marginTop='16px';
+  const tot=d.classified_deterministically+d.classified_by_model;
+  model.innerHTML=`<h3>What the model did</h3><div class="in">
+    <dl class="kv">
+      <dt>classified by the code tables, no model call</dt><dd>${d.classified_deterministically} of ${tot} (${tot?Math.round(100*d.classified_deterministically/tot):0}%)</dd>
+      <dt>escalated because no table recognised the code</dt><dd>${d.classified_by_model}</dd>
+      <dt>cases carrying an unmapped reason code</dt><dd>${d.unmapped_codes} of ${d.case_count}</dd>
+      <dt>proposals refused for being out of bounds</dt><dd>${d.model_safety_events}</dd>
+    </dl>
+    <div style="margin-top:14px">
+      <button class="btn" id="toggle-model">${withModel?'Run with the model unavailable':'Run with the LLM classifier available'}</button>
+      <span class="dim" style="margin-left:10px;font-size:12.5px">
+        ${withModel?'Currently modelling a classifier at 88% accuracy.':'Currently the reproducible floor: no model at all.'}</span>
+    </div>
+  </div>`;
+  v.append(model);
+  $('#toggle-model').onclick=()=>{$('#view').dataset.model=withModel?'0':'1';render();};
+
+  const lim=el('div','card'); lim.style.marginTop='16px';
+  lim.innerHTML=`<h3>What this run does not show</h3><div class="in">
+    <ul class="limits" style="margin:0;padding-left:18px">${d.limitations.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div>`;
+  v.append(lim);
+}
+
+/* ---------- cases ---------- */
+async function vCases(){
+  const rows=await api('/api/cases?limit=80');
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-info',
+    'The at-risk book. <b>Unmapped</b> marks a reason code no lookup table recognises — those are the cases the language model exists to handle.'));
+  const c=el('div','card');
+  c.innerHTML=`<div class="scroll"><table>
+    <thead><tr><th>Customer</th><th>Case</th><th class="r">At risk</th><th>Reason code</th>
+      <th>Failure</th><th>Bank</th><th>Mandate</th><th class="r">Att</th><th>Status</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr data-c="${esc(r.case_id)}" style="cursor:pointer">
+      <td>${esc(r.customer_name)}</td>
+      <td class="mono dim">${esc(r.case_id.slice(0,10))}…</td>
+      <td class="r">${esc(r.at_risk.display)}</td>
+      <td class="mono">${esc(r.raw_code||'—')} ${r.code_is_unmapped?'<span class="pill p-warn">unmapped</span>':''}</td>
+      <td>${esc(r.observed_failure_class||r.failure_class||'—')}</td>
+      <td class="dim">${esc(r.bank)}</td>
+      <td class="dim mono" style="font-size:11px">${esc(r.mandate_type)}</td>
+      <td class="r">${r.attempts}</td>
+      <td><span class="pill ${r.status==='recovered'?'p-ok':r.status==='open'?'p-mute':'p-warn'}">${esc(r.status)}</span></td>
+    </tr>`).join('')}</tbody></table></div>`;
+  v.append(c);
+  const detail=el('div'); detail.style.marginTop='16px'; v.append(detail);
+  c.querySelectorAll('tr[data-c]').forEach(tr=>tr.onclick=async()=>{
+    detail.innerHTML='<div class="empty">Loading case…</div>';
+    try{
+      const d=await api(`/api/cases/${tr.dataset.c}`);
+      detail.innerHTML=`<div class="card"><h3>${esc(d.customer_name)} · ${esc(d.case_id)}</h3><div class="in">
+        <dl class="kv" style="margin-bottom:16px">
+          <dt>bank narration</dt><dd style="font-family:var(--ui)">${esc(d.narration)}</dd>
+          <dt>failed at</dt><dd>${esc(d.failed_at)}</dd>
+          <dt>mandate</dt><dd>${esc(d.mandate_type)} · ${esc(d.mandate_reference)} · ceiling ${esc(d.mandate_max.display)}</dd>
+          <dt>tenure</dt><dd>${d.tenure_days} days</dd>
+        </dl>
+        ${d.degraded?`<div class="note note-warn">Degraded: ${esc(d.degraded_reason||'')}</div>`:''}
+        ${d.timeline.length?`<div class="micro" style="margin-bottom:6px">Timeline</div>
+          ${d.timeline.map(t=>`<div class="mono dim" style="padding:2px 0">
+            <span style="display:inline-block;width:88px;color:var(--accent)">${esc(t.node)}</span>${esc(t.summary)}</div>`).join('')}`
+          :'<div class="dim">This case has not been worked yet — open the approval inbox to drive one.</div>'}
+        ${d.actions.length?`<div class="micro" style="margin:16px 0 6px">Actions and their legitimacy trail</div>
+          <div class="scroll"><table><thead><tr><th>Action</th><th class="r">Amount</th>
+            <th>Authorisation</th><th>Policy</th><th>Status</th></tr></thead>
+          <tbody>${d.actions.map(a=>`<tr><td class="mono">${esc(a.action_type)}</td>
+            <td class="r">${esc(a.amount?.display||'—')}</td>
+            <td>${esc(a.authorisation_decision||'—')}</td><td>${esc(a.policy_effect||'—')}</td>
+            <td>${esc(a.status)}</td></tr>`).join('')}</tbody></table></div>`:''}
+      </div></div>`;
+    }catch(e){detail.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
+  });
+}
+
+/* ---------- scheduler ---------- */
+const FAILS=['insufficient_funds','issuer_technical','limit_exceeded','mandate_paused','unknown',
+  'auth_required','instrument_expired','mandate_revoked','account_closed','risk_declined'];
+async function vScheduler(){
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-acc',
+    'The scheduler solves a <b>dynamic program</b> over the issuer hazard curve — no model is involved, and there is no escalation path to one. '+
+    'Change the failure date and watch the answer move for a reason it can state.'));
+  const ctl=el('div','card');
+  ctl.innerHTML=`<div class="in" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+    <label><div class="micro" style="margin-bottom:4px">Failure class</div>
+      <select id="s-fc">${FAILS.map(f=>`<option>${f}</option>`).join('')}</select></label>
+    <label><div class="micro" style="margin-bottom:4px">Failed on</div>
+      <input type="date" id="s-date" value="2026-09-18"></label>
+    <label><div class="micro" style="margin-bottom:4px">Amount (paise)</div>
+      <input type="number" id="s-amt" class="num" value="149900" style="width:120px"></label>
+    <label><div class="micro" style="margin-bottom:4px">Attempts used</div>
+      <input type="number" id="s-att" class="num" value="0" min="0" max="5" style="width:80px"></label>
+    <button class="btn btn-primary" id="s-go">Solve</button>
+  </div>`;
+  v.append(ctl);
+  const out=el('div'); out.style.marginTop='16px'; v.append(out);
+
+  async function solve(){
+    out.innerHTML='<div class="empty">Solving…</div>';
+    const p=new URLSearchParams({failure_class:$('#s-fc').value,amount_minor:$('#s-amt').value,
+      failed_at:$('#s-date').value+'T06:00:00Z',attempts_used:$('#s-att').value});
+    try{
+      const d=await api('/api/scheduler/explain?'+p);
+      if(!d.should_retry){
+        out.innerHTML=`<div class="card"><div class="in">
+          <span class="pill p-risk">refused</span>
+          <div class="read" style="margin-top:12px">${esc(d.refusal_reason)}</div>
+          <div class="micro" style="margin:16px 0 6px">Why this class behaves this way</div>
+          <div class="read">${esc(d.rationale)}</div></div></div>`;
+        return;
+      }
+      const max=Math.max(...d.ranked.map(r=>r.value.minor))||1;
+      out.innerHTML=`<div class="bezel"><div class="core">
+        <div class="micro">Chosen hour</div>
+        <div style="font-size:26px;font-weight:500;letter-spacing:-.02em;margin:4px 0">${esc(d.ist_label)}</div>
+        <div class="read" style="margin:10px 0 0">${esc(d.explanation)}</div>
+        <dl class="kv" style="margin-top:16px">
+          <dt>probability this attempt settles</dt><dd>${bps(d.probability_bps)}</dd>
+          <dt>expected value of all remaining attempts</dt><dd>${esc(d.expected_value.display)}</dd>
+          <dt>attempts remaining</dt><dd>${d.attempts_remaining}</dd>
+          <dt>posture</dt><dd>${esc(d.posture)}</dd>
+        </dl></div></div>
+      <div class="card" style="margin-top:16px"><h3>The hours it rejected — top 24 by expected value</h3><div class="in">
+        <div class="spark" style="margin-bottom:12px">
+          ${d.ranked.map(r=>`<i class="${r.is_chosen?'hot':''}" style="height:${Math.max(4,100*r.value.minor/max)}%" title="${esc(r.ist_label)} — ${bps(r.probability_bps)}"></i>`).join('')}
+        </div>
+        <div class="scroll"><table><thead><tr><th>Hour (IST)</th><th class="r">P(settle)</th><th class="r">Expected value</th><th></th></tr></thead>
+        <tbody>${d.ranked.slice(0,10).map(r=>`<tr>
+          <td class="mono">${esc(r.ist_label)}</td><td class="r">${bps(r.probability_bps)}</td>
+          <td class="r">${esc(r.value.display)}</td>
+          <td>${r.is_chosen?'<span class="pill p-acc">chosen</span>':''}</td></tr>`).join('')}</tbody></table></div>
+      </div></div>`;
+    }catch(e){out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
+  }
+  $('#s-go').onclick=solve; solve();
+}
+
+/* ---------- policy ---------- */
+async function vPolicy(){
+  const d=await api('/api/policy/bundle');
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-info',
+    `<b>${d.rule_count} rules, ${d.immutable_count} of them regulatory floors the compiler cannot weaken.</b> `+
+    `Evaluation is pure and total, and <b>no match denies</b> — a gap in policy blocks an action rather than allowing it. `+
+    `Content hash <span class="mono">${esc(d.content_hash.slice(0,16))}…</span>`));
+
+  const t=el('div','card');
+  t.innerHTML=`<div class="scroll"><table>
+    <thead><tr><th class="r">Pri</th><th>Rule</th><th>Effect</th><th>Condition</th></tr></thead>
+    <tbody>${d.rules.map(r=>`<tr>
+      <td class="r dim">${r.priority}</td>
+      <td>${esc(r.name)} ${r.is_immutable?'<span class="pill p-risk">regulatory</span>':''}
+        <div class="dim" style="font-size:12px;margin-top:2px;max-width:52ch">${esc(r.description||'')}</div></td>
+      <td><span class="pill ${r.effect==='deny'?'p-risk':r.effect==='allow'?'p-ok':r.effect==='cap'?'p-info':'p-warn'}">${esc(r.effect)}</span>
+        ${r.cap_amount?`<div class="mono dim" style="font-size:11px;margin-top:3px">${esc(r.cap_amount.display)}</div>`:''}
+        ${r.cap_percent!=null?`<div class="mono dim" style="font-size:11px;margin-top:3px">${r.cap_percent}% of MRR</div>`:''}</td>
+      <td class="mono" style="font-size:11.5px;max-width:34ch">${esc(r.condition)}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+  v.append(t);
+
+  const ev=el('div','card'); ev.style.marginTop='16px';
+  ev.innerHTML=`<h3>Evaluate arbitrary facts against the live bundle</h3><div class="in">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <label><div class="micro" style="margin-bottom:4px">Action</div>
+        <select id="p-act"><option>send_reminder</option><option>retry_debit</option>
+        <option>offer_winback_discount</option><option>stop_and_write_off</option></select></label>
+      <label><div class="micro" style="margin-bottom:4px">Amount (paise)</div>
+        <input type="number" id="p-amt" class="num" value="20000" style="width:110px"></label>
+      <label><div class="micro" style="margin-bottom:4px">IST hour</div>
+        <input type="number" id="p-hr" class="num" value="11" min="0" max="23" style="width:70px"></label>
+      <label><div class="micro" style="margin-bottom:4px">Consent</div>
+        <select id="p-con"><option>granted</option><option>withdrawn</option><option>never_granted</option></select></label>
+      <label><div class="micro" style="margin-bottom:4px">Authorisation</div>
+        <select id="p-auth"><option>authorised</option><option>denied</option><option>requires_step_up</option></select></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px" class="dim">
+        <input type="checkbox" id="p-rf"> review-first</label>
+      <button class="btn btn-primary" id="p-go">Evaluate</button>
+    </div>
+    <div id="p-out"></div></div>`;
+  v.append(ev);
+
+  $('#p-go').onclick=async()=>{
+    const out=$('#p-out'); out.innerHTML='<div class="dim">Evaluating…</div>';
+    const body={action_type:$('#p-act').value,amount_minor:Number($('#p-amt').value),
+      local_hour_ist:Number($('#p-hr').value),consent_state:$('#p-con').value,
+      authorisation_decision:$('#p-auth').value,merchant_review_first:$('#p-rf').checked,
+      purpose:'payment_recovery_outreach',subscription_mrr_minor:149900,
+      budget_headroom_minor:5000000,customer_concession_headroom_minor:100000,
+      customer_tenure_days:400};
+    try{
+      const d=await api('/api/policy/evaluate',{method:'POST',
+        headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      out.innerHTML=`<div class="note ${d.denied?'note-risk':d.requires_approval?'note-warn':'note-info'}">
+        <b>${esc(d.effect.toUpperCase())}</b>${d.matched_rule_name?` · ${esc(d.matched_rule_name)}`:''}<br>${esc(d.reason)}
+        ${d.was_capped?`<br>Capped from ${esc(d.proposed.display)} to <b>${esc(d.effective.display)}</b> by ${esc(d.capping_rule_name)}.`:''}
+      </div>
+      <div class="micro" style="margin-bottom:6px">Every rule considered, in order</div>
+      <div class="scroll"><table><thead><tr><th class="r">Pri</th><th>Rule</th><th>Effect</th><th>Matched</th></tr></thead>
+      <tbody>${d.trace.map(t=>`<tr style="${t.matched?'':'opacity:.45'}">
+        <td class="r dim">${t.priority}</td><td>${esc(t.rule_name)}</td>
+        <td class="dim">${esc(t.effect)}</td>
+        <td>${t.matched?'<span class="pill p-acc">matched</span>':'<span class="dim">no</span>'}
+          ${t.stopped_evaluation?' <span class="pill p-risk">stopped here</span>':''}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    }catch(e){out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
+  };
+  $('#p-go').click();
+}
+
+/* ---------- classifier ---------- */
+async function vClassifier(){
+  const tax=await api('/api/taxonomy');
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-acc',
+    `<b>${tax.total_codes} issuer, NACH and card codes resolve with no model call.</b> `+
+    `The model is reached only when none of them recognise the reason string — try <span class="mono">U30</span> (resolves) against <span class="mono">switch busy</span> (escalates).`));
+
+  const box=el('div','card');
+  box.innerHTML=`<div class="in">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <label style="flex:1;min-width:260px"><div class="micro" style="margin-bottom:4px">Reason code or bank narration</div>
+        <input id="c-in" style="width:100%" value="switch busy" placeholder="e.g. U30, 51, A/c bal low"></label>
+      <button class="btn btn-primary" id="c-go">Classify</button>
+    </div>
+    <div id="c-out" style="margin-top:16px"></div></div>`;
+  v.append(box);
+
+  const run=async()=>{
+    const out=$('#c-out'); out.innerHTML='<div class="dim">Classifying…</div>';
+    try{
+      const d=await api('/api/classify',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({raw_code:$('#c-in').value})});
+      out.innerHTML = d.resolved
+        ? `<div class="note note-info"><b>Resolved by the code tables — no model call.</b><br>
+            ${esc(d.failure_class)} at ${bps(d.confidence_bps||0)} confidence, matched
+            <span class="mono">${esc(d.matched_code)}</span> in the <b>${esc(d.matched_namespace)}</b> namespace.</div>`
+        : `<div class="note note-warn"><b>Escalated to the language model.</b><br>
+            No table recognised this (${esc(d.escalation_reason)}). This is the case the LLM exists for:
+            no lookup table can enumerate every way a bank writes a failure.</div>`;
+    }catch(e){out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
+  };
+  $('#c-go').onclick=run; $('#c-in').onkeydown=e=>{if(e.key==='Enter')run();}; run();
+
+  const t=el('div','card'); t.style.marginTop='16px';
+  t.innerHTML=`<h3>The closed set of failure classes</h3><div class="scroll"><table>
+    <thead><tr><th>Class</th><th>Posture</th><th class="r">Max attempts</th><th>Example codes</th><th>Why</th></tr></thead>
+    <tbody>${tax.classes.map(c=>`<tr>
+      <td class="mono">${esc(c.failure_class)}</td>
+      <td><span class="pill ${c.retryable?'p-ok':'p-risk'}">${esc(c.posture)}</span></td>
+      <td class="r">${c.max_attempts}</td>
+      <td class="mono dim" style="font-size:11px">${c.example_codes.map(esc).join(', ')||'—'}</td>
+      <td class="dim" style="font-size:12px;max-width:44ch">${esc(c.rationale)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  v.append(t);
+}
+
+/* ---------- ledger ---------- */
+async function vLedger(){
+  const v=$('#view'); v.innerHTML='';
+  v.append(el('div','note note-acc',
+    'Balances are never stored — they are summed from append-only entries, and Postgres triggers refuse '+
+    '<span class="mono">UPDATE</span> and <span class="mono">DELETE</span> on the ledger tables. '+
+    'These are real validated drafts: the balance check below is the same one that runs before any commit.'));
+  const ctl=el('div','card');
+  ctl.innerHTML=`<div class="in" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+    <label><div class="micro" style="margin-bottom:4px">At risk (paise)</div>
+      <input type="number" id="l-risk" class="num" value="149900" style="width:120px"></label>
+    <label><div class="micro" style="margin-bottom:4px">Concession (paise)</div>
+      <input type="number" id="l-con" class="num" value="20000" style="width:120px"></label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px" class="dim">
+      <input type="checkbox" id="l-rec" checked> the debit eventually settles</label>
+    <button class="btn btn-primary" id="l-go">Post</button>
+  </div>`;
+  v.append(ctl);
+  const out=el('div'); out.style.marginTop='16px'; v.append(out);
+
+  const run=async()=>{
+    out.innerHTML='<div class="empty">Posting…</div>';
+    const p=new URLSearchParams({at_risk_minor:$('#l-risk').value,
+      concession_minor:$('#l-con').value,recover:$('#l-rec').checked});
+    try{
+      const d=await api('/api/ledger/demo?'+p);
+      out.innerHTML=d.map(t=>`<div class="card" style="margin-bottom:14px">
+        <h3>${esc(t.txn_type)} ${t.balances?'<span class="pill p-ok">balances</span>':'<span class="pill p-risk">UNBALANCED</span>'}</h3>
+        <div class="in">
+          <div class="dim" style="margin-bottom:10px">${esc(t.narration)}</div>
+          <table><tbody>${t.entries.map(e=>`<tr>
+            <td style="width:60px" class="mono">${e.direction==='debit'?'Dr':'&nbsp;&nbsp;Cr'}</td>
+            <td class="mono">${esc(e.account)}</td>
+            <td class="r">${esc(e.amount.display)}</td></tr>`).join('')}</tbody></table>
+          <div class="dim mono" style="margin-top:10px;font-size:12px">
+            debits ${esc(t.total_debits.display)} = credits ${esc(t.total_credits.display)}</div>
+          <div class="dim mono" style="font-size:11px;margin-top:4px">key ${esc(t.idempotency_key)}</div>
+        </div></div>`).join('');
+    }catch(e){out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
+  };
+  $('#l-go').onclick=run; run();
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -53,9 +53,34 @@ decline taxonomy escalating to the model, the scheduler's decisions with reasons
 raising churn risk, a balanced four-legged concession posting, the policy engine refusing six different
 things, and four complete agent runs including one where the model is entirely unavailable.
 
+### The web console
+
 ```bash
-.venv/bin/python -m pytest tests/unit -q        # 145 tests
+make console          # http://localhost:8000
+```
+
+One process, one port, no build step and no database. The console is a single
+self-contained page served by the API, which drives the seeded simulator in
+process. That is a deliberate choice: a demo that needs a second process and a
+Node toolchain is a demo that fails in front of a panel.
+
+Seven screens, and four of them exist so the claims below can be *falsified*
+rather than believed:
+
+| Screen | What it is for |
+|---|---|
+| **Approval inbox** | Each item is a genuinely paused LangGraph thread sitting on a committed checkpoint. Approving resumes it, and it then runs authorisation, policy and the executor for real. Resolving with a stale version returns 409. |
+| **Recovery cockpit** | The batch evidence: per-arm rates with bootstrap intervals, lift on the difference, the calibration table, and the limitations in full. |
+| **At-risk cases** | The book, with each case's timeline and every action's legitimacy trail. |
+| **Retry scheduler** | Change the failure date and watch the dynamic program move its answer — and show you the 24 hours it rejected. |
+| **Policy engine** | All 27 rules, plus an evaluator you can throw arbitrary facts at, with the full rule-by-rule trace. |
+| **Classifier** | Type a reason code. Watch `U30` resolve with no model call and `switch busy` escalate. |
+| **Ledger** | Build a posting sequence and try to make it fail to balance. |
+
+```bash
+.venv/bin/python -m pytest tests/unit -q        # 203 tests
 .venv/bin/python -m pytest -m invariant -q      # only the financial invariants
+make batch                                      # the seeded experiment, in the terminal
 open docs/board.html                            # visual build board
 ```
 
@@ -273,24 +298,32 @@ much authority the agent has over the books: four economic events and nothing el
 
 This track asks for measured results and documented exceptions, so here is the state of things.
 
-**Complete and tested** — `domain`, `core`, `db`, `ledger`, `risk`, `policy`, `graph`.
-145 tests, clean lint.
+**Complete and tested** — `domain`, `core`, `db`, `ledger`, `risk`, `policy`, `graph`,
+`simulator`, `evidence`, `api` and the console. 203 tests, clean lint.
 
-**Partial** — `mandates` (the authorisation check is done; registry, consumption and step-up are not),
-`llm` (redaction done; schemas, client and fixtures are not), `gateway` (webhook verification and event
-parsing done; REST client and reconciler are not), `channels` (consent, frequency and adapters done;
-dispatch orchestration is not), `simulator` (seeded RNG and customer model done; issuer, population and
-world are not), `evidence` (arm assignment done; lift statistics and report are not).
+**Partial** — `mandates` (the authorisation check is done; the persistent registry, consumption
+accounting and the real step-up journey are not), `llm` (PII redaction done; the Claude client,
+output schemas and offline fixtures are not — the batch runs on the deterministic fallback),
+`gateway` (webhook verification and event parsing done; the REST client and reconciler are not),
+`channels` (consent, frequency and adapters done; dispatch orchestration is not).
 
-**Not started** — `audit`, `api`, the console, and the batch experiment runner.
+**Not started** — `audit` (the redaction gate, event log, outbox relay and time-travel replay).
 
-**What this means.** The engine is a deep vertical slice built to a standard that would survive review at
-a payments company, with a documented edge — not a complete platform. In particular the **batch
-experiment is not yet runnable**, so the "measured money recovered across batches" figure this track asks
-for does not exist yet. The statistical machinery for it is specified in `docs/ARCHITECTURE.md` §11 —
-three arms (a no-intervention control, a fixed-schedule baseline, and Anvil), bootstrap confidence
-intervals on the *difference* rather than two intervals eyeballed for overlap, and an explicit refusal to
-claim significance when the interval crosses zero — but it is not wired up.
+**The headline result is not the one I wanted, and the report leads with it.** In the seeded batch,
+naive fixed-schedule dunning beats the agent on raw recovery rate — around 86% against 65%, and the
+difference is statistically significant. The calibration table says why: the retry curves in
+`anvil/domain/taxonomy.py` are systematically over-confident by roughly 10 points, because they are
+hand-written priors rather than parameters fitted to this issuer. `anvil/risk/calibration.py` is the
+mechanism for fixing that, and until it has been run against real outcomes the scheduler is only as
+good as its priors.
+
+Two things this comparison does not price, both stated in the report: the baseline pays nothing here
+for burning a mandate's finite presentment allowance or for damaging an issuer risk score, and the
+batch runs with the **language model disabled**, so unclassifiable failures fall to `UNKNOWN` and get
+one conservative attempt. Every number is a floor.
+
+Tuning the simulator until the agent won would have been easy and would have made every other number
+in this repository worthless.
 
 **`docker-compose.yml` is committed but unverified.** Local development moved to a native Postgres 16
 after Docker Desktop failed on this machine. Use the venv path above rather than compose.

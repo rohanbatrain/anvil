@@ -49,7 +49,7 @@ packages = ["anvil"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["anvil", "tests"]
+src = ["anvil", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "ASYNC", "S", "DTZ", "T20"]
@@ -64,6 +64,9 @@ ignore = ["S101", "B008", "N818", "RUF012"]
 "anvil/evidence/statistics.py" = ["S311"]
 # run_batch is a command-line entry point whose job is to print a report.
 "anvil/evidence/run_batch.py" = ["T201"]
+# The tour is a script: it prints, and it inserts the repo root on sys.path
+# before importing, which is exactly the E402 the rule is warning about.
+"scripts/tour.py" = ["T201", "E402", "ASYNC240"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -13,13 +13,12 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import sys
-from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from anvil.core.clock import FrozenClock, to_ist  # noqa: E402
-from anvil.domain.enums import (  # noqa: E402
+from anvil.core.clock import to_ist
+from anvil.domain.enums import (
     ActionType,
     AuthorisationDecision,
     ConsentState,
@@ -27,20 +26,21 @@ from anvil.domain.enums import (  # noqa: E402
     MessagePurpose,
     PolicyEffect,
 )
-from anvil.domain.money import Money, sum_money  # noqa: E402
-from anvil.domain.taxonomy import classify_code, known_codes  # noqa: E402
-from anvil.ledger.accounts import AccountCode, ChartOfAccounts  # noqa: E402
-from anvil.ledger.posting import (  # noqa: E402
+from anvil.domain.money import Money, sum_money
+from anvil.domain.taxonomy import known_codes
+from anvil.ledger.accounts import ChartOfAccounts
+from anvil.ledger.posting import (
     PostingContext,
     grant_concession,
     recognise_receivable,
     settle_recovered_debit,
 )
-from anvil.policy.defaults import default_bundle  # noqa: E402
-from anvil.policy.evaluator import evaluate  # noqa: E402
-from anvil.policy.facts import PolicyFacts  # noqa: E402
-from anvil.risk.scheduler import schedule_next_attempt  # noqa: E402
-from anvil.risk.scoring import CustomerHistory, score_case  # noqa: E402
+from anvil.policy.defaults import default_bundle
+from anvil.policy.evaluator import evaluate
+from anvil.policy.facts import PolicyFacts
+from anvil.risk.classifier import classify_failure
+from anvil.risk.scheduler import schedule_next_attempt
+from anvil.risk.scoring import CustomerHistory, score_case
 
 W = 78
 DIM = "\033[2m"
@@ -74,7 +74,7 @@ def part_money() -> None:
     print(f"  Indian grouping:          {BOLD}{Money.from_major('1234567.89')}{END}")
 
     parts = Money(100_00).allocate([1, 1, 1])
-    print(f"\n  Splitting ₹100.00 three ways, no rounding loss:")
+    print("\n  Splitting ₹100.00 three ways, no rounding loss:")
     print(f"    {' + '.join(str(p) for p in parts)}  =  {BOLD}{sum_money(parts)}{END}")
 
     try:
@@ -96,17 +96,24 @@ def part_taxonomy() -> None:
         ("54", "card expired"),
         ("01", "NACH return reason"),
         ("mandate_cancelled", "a gateway text slug"),
-        ("A/c bal low", "a bank narration from 1998"),
+        ("A/c bal low", "free text a phrase rule still catches"),
+        ("switch busy", "free text nothing recognises"),
+        ("REFER TO ISSUER", "the classic uninformative decline"),
     ]
     for raw, why in samples:
-        result = classify_code(raw)
-        if result is None:
-            print(f"  {raw!r:26} {WARN}-> escalate to the model{END}   {DIM}{why}{END}")
+        # The full classifier, not the bare code table: it carries phrase rules
+        # and corroboration on top of the lookup, and it is what actually runs.
+        result = classify_failure(raw_code=raw)
+        if result.resolved:
+            label = result.failure_class.value  # type: ignore[union-attr]
+            print(f"  {raw!r:26} {OK}-> {label:20}{END} {DIM}{why}{END}")
         else:
-            print(f"  {raw!r:26} {OK}-> {result.value:20}{END} {DIM}{why}{END}")
+            print(f"  {raw!r:26} {WARN}-> escalate to the model{END}   {DIM}{why}{END}")
     print()
-    note("The last line is the whole argument for using an LLM here: no lookup")
-    note("table can enumerate every way a bank writes 'not enough money'.")
+    note("The escalated line is the whole argument for the LLM: no lookup table")
+    note("enumerates every way a settlement system from 1998 phrases a failure.")
+    note("Note that 'A/c bal low' still resolves: the classifier carries phrase")
+    note("rules beyond the code tables, so the model is a last resort, not a first.")
 
 
 def part_scheduler() -> None:
@@ -192,17 +199,21 @@ def part_ledger() -> None:
         print(f"\n  {BOLD}{label}{END}")
         for e in draft.entries:
             side = "Dr" if e.direction.value == "debit" else "  Cr"
-            print(f"    {side} {e.account.code.value:<32} {str(e.amount):>14}")
+            print(f"    {side} {e.account.code.value:<32} {e.amount!s:>14}")
         ok = draft.imbalance_minor == 0
         mark = f"{OK}balances{END}" if ok else f"{BAD}UNBALANCED{END}"
-        print(f"    {DIM}{'debits':>6} {draft.total_debits} = credits {draft.total_credits}{END}"
-              f"  {mark}")
+        print(
+            f"    {DIM}{'debits':>6} {draft.total_debits} = credits {draft.total_credits}{END}"
+            f"  {mark}"
+        )
 
     print()
     note("The concession is four legs on purpose: it costs revenue (not cash)")
     note("and it consumes the earmarked budget. Netting them would hide one.")
-    print(f"\n  {OK}Postgres refuses UPDATE and DELETE on ledger_entries{END} "
-          f"{DIM}(verified against a superuser){END}")
+    print(
+        f"\n  {OK}Postgres refuses UPDATE and DELETE on ledger_entries{END} "
+        f"{DIM}(verified against a superuser){END}"
+    )
 
 
 def part_policy() -> None:
@@ -230,40 +241,71 @@ def part_policy() -> None:
         "local_hour_ist": 11,
         "merchant_review_first": False,
     }
-    show("Reminder at 11:00 IST, consent granted",
-         PolicyFacts(action_type=ActionType.SEND_REMINDER, **base))
-    show("The same reminder at 23:00 IST",
-         PolicyFacts(action_type=ActionType.SEND_REMINDER, **{**base, "local_hour_ist": 23}))
-    show("The same reminder after consent is withdrawn",
-         PolicyFacts(action_type=ActionType.SEND_REMINDER,
-                     **{**base, "consent_state": ConsentState.WITHDRAWN}))
-    show("Retrying a debit the issuer declined for risk",
-         PolicyFacts(action_type=ActionType.RETRY_DEBIT, is_debit_retry=True,
-                     is_money_movement=True, failure_class=FailureClass.RISK_DECLINED,
-                     authorisation_decision=AuthorisationDecision.AUTHORISED,
-                     merchant_review_first=False))
-    show("A debit with no valid mandate",
-         PolicyFacts(action_type=ActionType.RETRY_DEBIT, is_debit_retry=True,
-                     is_money_movement=True, failure_class=FailureClass.INSUFFICIENT_FUNDS,
-                     authorisation_decision=AuthorisationDecision.DENIED,
-                     merchant_review_first=False))
-    show("Any action at all, on a merchant in review-first mode",
-         PolicyFacts(action_type=ActionType.SEND_REMINDER, **{**base,
-                                                              "merchant_review_first": True}))
+    show(
+        "Reminder at 11:00 IST, consent granted",
+        PolicyFacts(action_type=ActionType.SEND_REMINDER, **base),
+    )
+    show(
+        "The same reminder at 23:00 IST",
+        PolicyFacts(action_type=ActionType.SEND_REMINDER, **{**base, "local_hour_ist": 23}),
+    )
+    show(
+        "The same reminder after consent is withdrawn",
+        PolicyFacts(
+            action_type=ActionType.SEND_REMINDER,
+            **{**base, "consent_state": ConsentState.WITHDRAWN},
+        ),
+    )
+    show(
+        "Retrying a debit the issuer declined for risk",
+        PolicyFacts(
+            action_type=ActionType.RETRY_DEBIT,
+            is_debit_retry=True,
+            is_money_movement=True,
+            failure_class=FailureClass.RISK_DECLINED,
+            authorisation_decision=AuthorisationDecision.AUTHORISED,
+            merchant_review_first=False,
+        ),
+    )
+    show(
+        "A debit with no valid mandate",
+        PolicyFacts(
+            action_type=ActionType.RETRY_DEBIT,
+            is_debit_retry=True,
+            is_money_movement=True,
+            failure_class=FailureClass.INSUFFICIENT_FUNDS,
+            authorisation_decision=AuthorisationDecision.DENIED,
+            merchant_review_first=False,
+        ),
+    )
+    show(
+        "Any action at all, on a merchant in review-first mode",
+        PolicyFacts(
+            action_type=ActionType.SEND_REMINDER, **{**base, "merchant_review_first": True}
+        ),
+    )
 
     capped = evaluate(
         bundle,
         PolicyFacts(
-            action_type=ActionType.OFFER_WINBACK_DISCOUNT, is_concession=True,
-            consent_state=ConsentState.GRANTED, purpose=MessagePurpose.PROMOTIONAL_WINBACK,
-            local_hour_ist=11, amount_minor=4_000_00, subscription_mrr_minor=1_000_00,
-            budget_headroom_minor=100_000_00, customer_concession_headroom_minor=100_000_00,
-            customer_tenure_days=800, merchant_review_first=False,
+            action_type=ActionType.OFFER_WINBACK_DISCOUNT,
+            is_concession=True,
+            consent_state=ConsentState.GRANTED,
+            purpose=MessagePurpose.PROMOTIONAL_WINBACK,
+            local_hour_ist=11,
+            amount_minor=4_000_00,
+            subscription_mrr_minor=1_000_00,
+            budget_headroom_minor=100_000_00,
+            customer_concession_headroom_minor=100_000_00,
+            customer_tenure_days=800,
+            merchant_review_first=False,
         ),
     )
     print(f"\n  {WARN}CAPPED{END}          A ₹4,000 discount on a ₹1,000/mo subscription")
-    print(f"  {'':<16}{DIM}cut to {Money(capped.capped_amount_minor or 0)} "
-          f"by {capped.capping_rule_name}{END}")
+    print(
+        f"  {'':<16}{DIM}cut to {Money(capped.capped_amount_minor or 0)} "
+        f"by {capped.capping_rule_name}{END}"
+    )
 
 
 async def part_graph() -> None:
@@ -271,7 +313,7 @@ async def part_graph() -> None:
     note("Every dependency is a stub here, so this needs nothing external.")
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests" / "unit"))
-    from test_graph import (  # type: ignore[import-not-found]  # noqa: E402
+    from test_graph import (  # type: ignore[import-not-found]
         StubGateway,
         StubModel,
         make_deps,
@@ -284,12 +326,22 @@ async def part_graph() -> None:
         ("The model is completely unavailable", {"model": StubModel(available=False)}, {}),
         (
             "The model proposes an action outside the closed set",
-            {"model": StubModel(steps=[
-                {"action_type": "wire_the_customer_money", "amount_minor": 50000,
-                 "rationale": "invented"},
-                {"action_type": ActionType.RETRY_DEBIT.value, "amount_minor": 149900,
-                 "rationale": "legitimate"},
-            ])},
+            {
+                "model": StubModel(
+                    steps=[
+                        {
+                            "action_type": "wire_the_customer_money",
+                            "amount_minor": 50000,
+                            "rationale": "invented",
+                        },
+                        {
+                            "action_type": ActionType.RETRY_DEBIT.value,
+                            "amount_minor": 149900,
+                            "rationale": "legitimate",
+                        },
+                    ]
+                )
+            },
             {},
         ),
         ("The gateway times out", {"gateway": StubGateway("unknown")}, {}),
@@ -306,8 +358,10 @@ async def part_graph() -> None:
         if final.get("degraded"):
             print(f"    {WARN}degraded{END}           {final.get('degraded_reason', '')[:52]}")
         if final.get("model_safety_events"):
-            print(f"    {BAD}safety events{END}      {final['model_safety_events']} "
-                  f"{DIM}proposal(s) refused before execution{END}")
+            print(
+                f"    {BAD}safety events{END}      {final['model_safety_events']} "
+                f"{DIM}proposal(s) refused before execution{END}"
+            )
         print(f"    {DIM}timeline:{END}")
         for h in final.get("history", [])[:9]:
             print(f"      {DIM}{h['node']:<10}{END} {h['summary'][:56]}")

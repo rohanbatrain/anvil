@@ -37,6 +37,9 @@ batch-with-model: ## Same batch, with the LLM classifier modelled as available
 tour: ## A guided tour of everything the system does, in one terminal run
 	$(PY) scripts/tour.py
 
+console: ## Serve the web console at http://localhost:8000 (no database, no keys)
+	.venv/bin/uvicorn anvil.main_api:app --port 8000 --reload
+
 test: ## Unit tests, no database required
 	$(PY) -m pytest tests/unit -q
 
@@ -58,4 +61,4 @@ down: ## Stop everything
 clean: ## Stop everything and delete the database volume
 	docker compose down -v
 
-.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour test test-all invariants lint fmt down clean
+.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour console test test-all invariants lint fmt down clean

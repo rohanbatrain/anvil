@@ -68,7 +68,10 @@ def configure_logging() -> None:
     shared: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
+        # Deliberately not structlog.stdlib.add_logger_name: that processor
+        # reads ``logger.name``, which only exists on a stdlib logger, and this
+        # configuration uses a PrintLogger. The module name is bound in
+        # get_logger instead, which works with any factory.
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         redact_processor,
@@ -91,4 +94,5 @@ def configure_logging() -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)  # type: ignore[no-any-return]
+    """A logger that carries its module name as a bound field."""
+    return structlog.get_logger().bind(logger=name)  # type: ignore[no-any-return]
