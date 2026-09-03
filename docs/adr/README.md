@@ -26,5 +26,6 @@ The record of having changed one's mind is the useful part.
 | [0011](0011-buildless-console.md) | The console is served by the API with no build step | Accepted |
 | [0012](0012-report-the-losing-result.md) | Report the result that makes the project look worse | Accepted |
 | [0013](0013-native-postgres-for-development.md) | Native Postgres for development, not Docker | Accepted |
+| [0014](0014-razorpay-mcp-as-a-development-tool.md) | Razorpay's MCP server is a development tool, not the product's gateway | Accepted |
 
 New decisions start from [`000-template.md`](000-template.md).

@@ -65,3 +65,36 @@ the graph are identical. Live mode is an adapter swap, not a different code path
 
 Unset `ANVIL_MODE` or set it to `offline`. No credentials are needed and nothing
 touches the network.
+
+---
+
+## Razorpay's MCP server (optional, for development)
+
+Razorpay hosts an MCP server exposing around fifty tools. Anvil configures it as
+a **development instrument** — for exploring the API and recording fixtures — and
+**not** as the product's payment client. See
+[ADR-0014](../adr/0014-razorpay-mcp-as-a-development-tool.md) for why.
+
+`.mcp.json` is committed and holds **no secret**: it interpolates
+`${RAZORPAY_MCP_TOKEN}` from the environment.
+
+```bash
+export RAZORPAY_MCP_TOKEN=$(make mcp-token)
+make mcp-check      # expect HTTP 200
+```
+
+`make mcp-token` derives `base64(key_id:key_secret)` from `.env` through Anvil's
+settings, so the secret never appears on a command line where shell history would
+keep it. It **refuses any key that is not `rzp_test_`**.
+
+Restart your editor after exporting the variable, so the MCP client picks it up.
+
+### What it does and does not cover
+
+Useful for Anvil: `create_registration_link` (the mandate authorisation flow),
+`fetch_tokens`, `revoke_token`, `create_order`, `fetch_payment`,
+`create_payment_link`, `send_payment_link`, `create_refund`.
+
+**Not available:** subscriptions and plans. Razorpay's tools reference lists no
+tools for either, so creating a plan, creating a subscription or charging a
+recurring invoice still goes through `anvil/gateway/` against the REST API.

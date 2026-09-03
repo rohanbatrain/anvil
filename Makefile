@@ -40,6 +40,18 @@ tour: ## A guided tour of everything the system does, in one terminal run
 console: ## Serve the web console at http://localhost:8000 (no database, no keys)
 	.venv/bin/uvicorn anvil.main_api:app --port 8000 --reload
 
+mcp-token: ## Print the Basic auth token for Razorpay's remote MCP server
+	@$(PY) scripts/mcp_token.py
+
+mcp-check: ## Confirm the Razorpay MCP server accepts our credentials
+	@$(PY) scripts/mcp_token.py > /dev/null && \
+	 curl -sS -o /dev/null -w "mcp.razorpay.com -> HTTP %{http_code}\n" \
+	   -X POST https://mcp.razorpay.com/mcp \
+	   -H "Authorization: Basic $$($(PY) scripts/mcp_token.py)" \
+	   -H "Content-Type: application/json" \
+	   -H "Accept: application/json, text/event-stream" \
+	   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
 test: ## Unit tests, no database required
 	$(PY) -m pytest tests/unit -q
 
@@ -61,4 +73,4 @@ down: ## Stop everything
 clean: ## Stop everything and delete the database volume
 	docker compose down -v
 
-.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour console test test-all invariants lint fmt down clean
+.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour console mcp-token mcp-check test test-all invariants lint fmt down clean

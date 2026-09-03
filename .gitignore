@@ -20,3 +20,8 @@ console/.env*.local
 *.db
 *.sqlite3
 artifacts/
+
+# .mcp.json is committed on purpose: it interpolates ${RAZORPAY_MCP_TOKEN} from
+# the environment and contains no secret. If you ever inline a token there,
+# uncomment the next line and rotate the key.
+# .mcp.json
