@@ -1,0 +1,32 @@
+# Secrets must never enter the build context. The Dockerfile copies only named
+# paths, so this is defence in depth against a future COPY . . -- which is
+# exactly how credentials end up in a published image layer.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Not needed at runtime. Excluding them keeps the image small and means a
+# documentation edit does not invalidate the dependency layer.
+docs
+tests
+scripts
+node_modules
+.playwright-mcp
+*.md
+!README.md
+docker-compose.yml
+Makefile

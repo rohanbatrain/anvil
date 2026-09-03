@@ -43,6 +43,13 @@ jobs:
       - name: Financial invariants
         run: pytest -m invariant -q
 
+      # A generated reference that nobody regenerated is a reference that lies.
+      - name: Configuration reference is current
+        run: |
+          python scripts/gen_config_docs.py
+          git diff --exit-code docs/reference/configuration.md \
+            || { echo "::error::run scripts/gen_config_docs.py and commit the result"; exit 1; }
+
       # The tour and the batch are user-facing entry points. A submission whose
       # headline command is broken is worse than one that never had it.
       - name: Guided tour runs
@@ -82,3 +89,64 @@ jobs:
         run: |
           psql -h localhost -U anvil -d anvil -tAc \
             "select count(*) from pg_trigger where tgname like '%immutable%'" | grep -q '^4$'
+
+  image:
+    name: container builds and serves
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The image cannot be built on the development machine (no Docker, and
+      # not enough disk), so it is verified here on every push rather than
+      # discovered to be broken at deploy time.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: anvil:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: It serves, and it is gated
+        run: |
+          docker run -d --name anvil -p 8000:8000 \
+            -e ANVIL_CONSOLE_PASSWORD=ci-secret anvil:ci
+
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8000/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+
+          health=$(curl -s http://localhost:8000/health)
+          echo "$health"
+          echo "$health" | grep -q '"status":"ok"'  || { echo "::error::unhealthy"; exit 1; }
+          echo "$health" | grep -q '"mode":"offline"' || { echo "::error::not offline"; exit 1; }
+
+          open=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/)
+          [ "$open" = "401" ] || { echo "::error::console not gated, got $open"; exit 1; }
+
+          auth=$(curl -s -o /dev/null -w "%{http_code}" -u reviewer:ci-secret http://localhost:8000/)
+          [ "$auth" = "200" ] || { echo "::error::credentials rejected, got $auth"; exit 1; }
+
+          # The screens a reviewer will actually open.
+          for path in /api/taxonomy /api/policy/bundle /api/approvals /api/ledger/demo; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -u reviewer:ci-secret "http://localhost:8000$path")
+            [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }
+            echo "$path 200"
+          done
+
+      - name: No secret is baked into the image
+        run: |
+          # A credential in a layer survives even if a later layer deletes it.
+          if docker run --rm --entrypoint sh anvil:ci -c 'ls -a /app' | grep -q '^\.env$'; then
+            echo "::error::.env is present in the image"; exit 1
+          fi
+          echo "no .env in the image"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker logs anvil || true

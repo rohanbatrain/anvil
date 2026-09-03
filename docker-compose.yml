@@ -1,4 +1,8 @@
-# Anvil. `docker compose up` boots the whole system, seeded, with no credentials.
+# Anvil, locally, with a database. `docker compose up` boots Postgres, the API
+# and the worker, seeded and with no credentials.
+#
+# The console is served by the api service at http://localhost:8000 -- there is
+# no separate front-end container, deliberately. See ADR-0011.
 services:
   postgres:
     image: postgres:16-alpine
@@ -57,15 +61,6 @@ services:
     depends_on:
       api: {condition: service_started}
       postgres: {condition: service_healthy}
-
-  console:
-    build: {context: ./console, dockerfile: Dockerfile}
-    container_name: anvil-console
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    ports: ["3000:3000"]
-    depends_on:
-      api: {condition: service_started}
 
 volumes:
   anvil-pgdata:

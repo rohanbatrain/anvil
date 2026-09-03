@@ -6,9 +6,10 @@ with an `ANVIL_` prefix, or from a `.env` file in the working directory.
 **Every value has a working default.** Offline mode — the default — needs no
 credentials at all, which is what lets a clone be run without ever handling one.
 
-This page is generated from `anvil/core/config.py`, so it cannot drift from the
-model. Settings are held frozen and secrets are `SecretStr`, so they do not
-appear in a traceback or a log line.
+This page is generated from `anvil/core/config.py` by
+`scripts/gen_config_docs.py`, so it cannot drift from the model. Settings are
+held frozen and secrets are `SecretStr`, so they do not appear in a traceback or
+a log line.
 
 ## Runtime
 
@@ -39,6 +40,14 @@ appear in a traceback or a log line.
 | `ANVIL_RAZORPAY_WEBHOOK_SECRET` | `(unset)` | Signs inbound webhooks; you choose this value. |
 | `ANVIL_ANTHROPIC_API_KEY` | `(unset)` | Unset in offline mode; fixtures are used instead. |
 
+## Public deployment
+
+| Variable | Default | Notes |
+|---|---|---|
+| `ANVIL_CONSOLE_USERNAME` | `reviewer` | Basic-auth username for a deployed console. |
+| `ANVIL_CONSOLE_PASSWORD` | `(unset)` | Set to gate the deployed console. Unset means no auth (localhost). |
+| `ANVIL_PUBLIC_BASE_URL` | `` | Canonical https URL when deployed, for docs links. |
+
 ## Models
 
 | Variable | Default | Notes |
@@ -62,6 +71,22 @@ appear in a traceback or a log line.
 |---|---|---|
 | `ANVIL_FIXTURES_DIR` | `anvil/llm/fixtures` | Recorded model responses used in offline mode. |
 
+
+## Two environments, two different files
+
+This distinction matters more than any individual value below. See
+[the deployment guide](../how-to/deploy.md).
+
+| | Local `.env` | Deployed host |
+|---|---|---|
+| Razorpay and Anthropic credentials | yes, for live testing | **never** |
+| `ANVIL_CONSOLE_PASSWORD` | not needed | **yes** — the only secret there |
+| `ANVIL_MODE` | `live` while testing | `offline` |
+
+The public instance holds no payment credentials, so it cannot leak one and
+cannot move money. The deploy workflow fails the build if the deployed instance
+reports anything other than offline mode.
+
 ## Validation at startup
 
 `ANVIL_MODE=live` **fails fast** if any of the four live-mode credentials is
@@ -70,6 +95,9 @@ first inbound webhook is worse than not starting.
 
 `ANVIL_SEED` must be positive. A seed of zero is still reproducible but reads as
 "unset" to anyone auditing a batch.
+
+Leaving `ANVIL_CONSOLE_PASSWORD` unset logs a warning, because an
+unauthenticated console is correct on localhost and wrong on a public host.
 
 ## Derived values
 

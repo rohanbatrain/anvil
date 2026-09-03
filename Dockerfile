@@ -21,6 +21,8 @@ COPY --chown=anvil:anvil alembic ./alembic
 COPY --chown=anvil:anvil alembic.ini ./
 USER anvil
 EXPOSE 8000
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s \
-  CMD curl -fsS http://localhost:8000/health || exit 1
-CMD ["uvicorn", "anvil.main_api:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
+  CMD curl -fsS "http://localhost:${PORT:-8000}/health" || exit 1
+# Shell form so ${PORT} expands. Render, Railway and Heroku inject it; Fly
+# does not, hence the default.
+CMD ["sh", "-c", "exec uvicorn anvil.main_api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

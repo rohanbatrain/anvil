@@ -88,6 +88,22 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = Field(default=60, description="Per model call.")
     llm_max_output_tokens: int = Field(default=4096, description="Ceiling per model call.")
 
+    # --- public deployment -----------------------------------------------
+    # Unset by default, which leaves local development unauthenticated. Setting
+    # a password turns on Basic auth across the whole console surface; see
+    # anvil/api/security.py for why that is the right default in both
+    # directions.
+    console_username: str = Field(
+        default="reviewer", description="Basic-auth username for a deployed console."
+    )
+    console_password: SecretStr = Field(
+        default=SecretStr(""),
+        description="Set to gate the deployed console. Unset means no auth (localhost).",
+    )
+    public_base_url: str = Field(
+        default="", description="Canonical https URL when deployed, for docs links."
+    )
+
     # --- paths ---------------------------------------------------------------
     fixtures_dir: str = Field(
         default="anvil/llm/fixtures", description="Recorded model responses used in offline mode."

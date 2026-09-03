@@ -32,6 +32,8 @@ Recipes for a specific goal. They assume you already know roughly what you are
 doing.
 
 - [Run the batch experiment](how-to/run-the-batch.md)
+- [Deploy the public demonstration](how-to/deploy.md) — and why the deployed
+  instance holds no payment credentials
 - [Operations](how-to/operations.md) — setup, configuration, running the
   services, and what to do when something breaks
 - [Add a decline code](how-to/add-a-decline-code.md)

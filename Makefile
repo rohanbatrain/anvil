@@ -64,6 +64,9 @@ invariants: ## Run only the financial invariant tests
 lint: ## Ruff and mypy
 	.venv/bin/ruff check anvil tests && .venv/bin/ruff format --check anvil tests && .venv/bin/mypy anvil
 
+docs: ## Regenerate the generated documentation
+	$(PY) scripts/gen_config_docs.py
+
 fmt: ## Autoformat
 	.venv/bin/ruff format anvil tests && .venv/bin/ruff check --fix anvil tests
 
@@ -73,4 +76,4 @@ down: ## Stop everything
 clean: ## Stop everything and delete the database volume
 	docker compose down -v
 
-.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour console mcp-token mcp-check test test-all invariants lint fmt down clean
+.PHONY: help venv db-up db-wait migrate seed demo batch batch-with-model tour console mcp-token mcp-check test test-all invariants lint fmt docs down clean

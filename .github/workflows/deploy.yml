@@ -1,0 +1,68 @@
+name: Deploy
+
+# Deploys the public demonstration to anvil.rohanbatra.in.
+#
+# Only after CI passes on main. A demonstration that is broken in front of a
+# reviewer is worse than one that is a commit behind, so this gate is not
+# negotiable.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: fly.io
+    runs-on: ubuntu-latest
+    # workflow_run fires on failure too; deploying a red build would defeat the
+    # point of gating on CI at all.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: production
+      url: https://anvil.rohanbatra.in
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # A deploy that reports success while the site is down is worse than a
+      # deploy that fails loudly.
+      - name: Verify the deployment answers
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://anvil.rohanbatra.in/health || true)
+            if [ "$code" = "200" ]; then echo "healthy"; exit 0; fi
+            echo "attempt $i: HTTP $code"; sleep 5
+          done
+          echo "::error::health check never returned 200"; exit 1
+
+      - name: Confirm the console is credential-gated
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://anvil.rohanbatra.in/)
+          if [ "$code" != "401" ]; then
+            echo "::error::console returned $code, expected 401 — it is not gated"
+            exit 1
+          fi
+          echo "console correctly requires credentials"
+
+      - name: Confirm no payment credentials are present
+        run: |
+          mode=$(curl -s https://anvil.rohanbatra.in/health | grep -o '"mode":"[^"]*"' || true)
+          echo "$mode"
+          if ! echo "$mode" | grep -q offline; then
+            echo "::error::deployed instance is not in offline mode"
+            exit 1
+          fi
