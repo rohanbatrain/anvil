@@ -134,7 +134,16 @@ visudo -cf /etc/sudoers.d/anvil-deploy >/dev/null || die "sudoers fragment is in
 log "Caddy site"
 install -m 644 "$APP_ROOT/repo/deploy/Caddyfile" /etc/caddy/Caddyfile
 sed -i "s/anvil\.rohanbatra\.in/$DOMAIN/g" /etc/caddy/Caddyfile
+# Validate before loading. A syntactically broken Caddyfile would otherwise take
+# the site down on reload, and the error would only appear in the journal.
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
+  || die "the generated Caddyfile is invalid; not reloading"
 systemctl enable caddy >/dev/null
+# enable does NOT apply a new config to an already-running Caddy. The package
+# starts Caddy with its default welcome page at install time, so without this
+# the site is never actually served and the symptom is a cheerful "Caddy works!"
+# page that looks like success.
+systemctl reload caddy 2>/dev/null || systemctl restart caddy
 
 log "Firewall"
 ufw --force reset >/dev/null
