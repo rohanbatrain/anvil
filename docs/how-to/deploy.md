@@ -39,6 +39,103 @@ instance reports anything other than `offline`.
 
 ---
 
+## 0. If the server is on AWS
+
+EC2 is a VPS, so everything below works unchanged. This section only covers what
+AWS does differently.
+
+**Use EC2 or Lightsail.** Not ECS, Fargate, App Runner or Elastic Beanstalk:
+each needs an ECR image, IAM roles and a task definition, and each begins with a
+Docker build. That is hours of unfamiliar surface for no benefit over a single
+machine running systemd.
+
+### Choosing an instance
+
+| | Recommendation | Why |
+|---|---|---|
+| Type | `t4g.small` (ARM, 2 GB) | About $12/month. Python and Caddy both build fine on ARM. |
+| Free tier | `t3.micro` (1 GB) works | Lower `MemoryMax` in `deploy/anvil.service` from `768M` to `448M` first, or the batch will be OOM-killed. |
+| Image | Ubuntu 24.04 LTS | What `bootstrap.sh` targets. Match the architecture to the instance. |
+| Storage | 20 GB gp3 | 8 GB is the default and is too tight once apt caches and releases accumulate. |
+| Region | `ap-south-1` (Mumbai) | The audience and the domain are Indian. |
+
+### Console path
+
+1. **EC2 → Launch instance.** Ubuntu 24.04, `t4g.small`, 20 GB gp3.
+2. **Key pair:** create one, download the `.pem`, `chmod 400` it. This is the
+   only copy — AWS does not keep it.
+3. **Security group** — three inbound rules and nothing else:
+
+   | Type | Port | Source |
+   |---|---|---|
+   | SSH | 22 | **My IP**, not `0.0.0.0/0` |
+   | HTTP | 80 | `0.0.0.0/0` and `::/0` |
+   | HTTPS | 443 | `0.0.0.0/0` and `::/0` |
+
+   **Port 8000 is never opened.** The application binds loopback; Caddy is the
+   only way in.
+4. **Elastic IP → Allocate → Associate** with the instance. Without this the
+   public IP changes on every stop/start and your DNS record silently rots.
+
+### CLI path
+
+```bash
+aws configure                      # region ap-south-1
+KEY=anvil-vps
+
+aws ec2 create-key-pair --key-name "$KEY" \
+  --query KeyMaterial --output text > ~/.ssh/$KEY.pem
+chmod 400 ~/.ssh/$KEY.pem
+
+SG=$(aws ec2 create-security-group --group-name anvil \
+      --description "Anvil console" --query GroupId --output text)
+
+MYIP=$(curl -s4 ifconfig.me)
+aws ec2 authorize-security-group-ingress --group-id "$SG" \
+  --protocol tcp --port 22 --cidr "$MYIP/32"
+aws ec2 authorize-security-group-ingress --group-id "$SG" \
+  --protocol tcp --port 80 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id "$SG" \
+  --protocol tcp --port 443 --cidr 0.0.0.0/0
+
+AMI=$(aws ssm get-parameters \
+  --names /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id \
+  --query 'Parameters[0].Value' --output text)
+
+INSTANCE=$(aws ec2 run-instances --image-id "$AMI" --instance-type t4g.small \
+  --key-name "$KEY" --security-group-ids "$SG" \
+  --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":20,"VolumeType":"gp3"}}]' \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=anvil}]' \
+  --query 'Instances[0].InstanceId' --output text)
+
+aws ec2 wait instance-running --instance-ids "$INSTANCE"
+
+ALLOC=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
+aws ec2 associate-address --instance-id "$INSTANCE" --allocation-id "$ALLOC"
+aws ec2 describe-addresses --allocation-ids "$ALLOC" \
+  --query 'Addresses[0].PublicIp' --output text        # the A record value
+```
+
+Then `ssh -i ~/.ssh/anvil-vps.pem ubuntu@<elastic-ip>` and continue from step 1.
+
+### What AWS changes about the rest
+
+**Two firewalls now.** The security group and `ufw`, which `bootstrap.sh`
+configures. Both must allow a port for traffic to arrive, and having both is
+correct — the security group is the network boundary, `ufw` is the host's own.
+
+**The SSH user is `ubuntu`,** not `root`. Prefix the bootstrap with `sudo`.
+
+**`bootstrap.sh` disables password authentication and root login.** On AWS both
+are already off, so this is belt and braces rather than a change.
+
+**Route 53 is optional.** If `rohanbatra.in` is hosted elsewhere, add the `A`
+record there — nothing about the deployment cares.
+
+**Budget:** set a billing alarm before you forget. An Elastic IP that is
+allocated but *not* associated with a running instance is billed hourly, which
+is the classic surprise.
+
 ## 1. Prepare the server
 
 SSH in as root (or with sudo) and run the bootstrap once:
