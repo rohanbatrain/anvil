@@ -59,7 +59,6 @@ log "Directories"
 install -d -m 755 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$APP_ROOT" "$APP_ROOT/releases"
 install -d -m 750 -o "$APP_USER"    -g "$APP_USER"    /var/lib/anvil
 install -d -m 750 -o root -g "$APP_USER" /etc/anvil
-install -d -m 755 -o caddy -g caddy /var/log/caddy
 
 log "Environment file"
 # Created empty and locked down. Populated by hand, never by this script and

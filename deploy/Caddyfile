@@ -13,11 +13,12 @@ anvil.rohanbatra.in {
 
 	# The application is bound to loopback, so this is the only way in.
 	reverse_proxy 127.0.0.1:8000 {
-		# Uvicorn is started with --forwarded-allow-ips=127.0.0.1, so it trusts
-		# these headers from Caddy and nothing else. Without that pairing the
-		# rate limiter could be defeated by a spoofed X-Forwarded-For.
+		# X-Forwarded-For, -Proto and -Host are passed by default; setting them
+		# explicitly makes Caddy warn about redundancy. Uvicorn runs with
+		# --forwarded-allow-ips=127.0.0.1, so it trusts those headers from Caddy
+		# and from nothing else -- without that pairing the rate limiter could be
+		# defeated with a spoofed X-Forwarded-For.
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
 
 		# The batch endpoint runs a real experiment. Do not give up on it.
 		transport http {
@@ -34,12 +35,14 @@ anvil.rohanbatra.in {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	}
 
-	# Structured, so it can be shipped somewhere later without reformatting.
+	# To journald rather than a file. The packaged Caddy unit confines what the
+	# process may write, so a file under /var/log needs permissions granted in
+	# two places and fails at reload time if either is wrong -- which is exactly
+	# what happened the first time. journald already handles rotation and
+	# retention, and `journalctl -u caddy` is what the runbook tells people to
+	# use anyway.
 	log {
-		output file /var/log/caddy/anvil.log {
-			roll_size 20MiB
-			roll_keep 5
-		}
+		output stderr
 		format json
 	}
 }
