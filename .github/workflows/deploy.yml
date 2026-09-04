@@ -67,12 +67,17 @@ jobs:
           [ "$code" = "401" ] || { echo "::error::console returned $code, expected 401"; exit 1; }
           echo "console requires credentials"
 
-      - name: No payment credentials are present
+      # The instance runs against Razorpay TEST credentials on purpose -- that
+      # is what makes the demonstration real. Production credentials on a public
+      # host is the thing that must never happen, and it is checked here as well
+      # as refused at startup, because a control enforced in one place is
+      # enforced once.
+      - name: Razorpay is test mode, never production
         run: |
           body=$(curl -s https://anvil.rohanbatra.in/health)
           echo "$body"
-          echo "$body" | grep -q '"mode":"offline"' \
-            || { echo "::error::deployed instance is not in offline mode"; exit 1; }
+          echo "$body" | grep -qE '"razorpay":"(test mode|not configured)' \
+            || { echo "::error::instance is not on test-mode Razorpay"; exit 1; }
 
       - name: Security headers are set
         run: |

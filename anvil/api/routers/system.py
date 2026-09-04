@@ -29,6 +29,14 @@ router = APIRouter(tags=["system"])
 @router.get("/health", response_model=Health)
 async def health() -> Health:
     settings = get_settings()
+    key_id = settings.razorpay_key_id
+    if not key_id:
+        razorpay = "not configured — the simulator stands in for the gateway"
+    else:
+        # Settings refuses anything that is not rzp_test_ at startup, so
+        # reaching here means the key is a test-mode one by construction.
+        razorpay = f"test mode ({key_id[:13]}…)"
+
     return Health(
         status="ok",
         mode=settings.mode.value,
@@ -39,6 +47,7 @@ async def health() -> Health:
             if settings.is_offline
             else f"{settings.model_classifier} / {settings.model_planner}"
         ),
+        razorpay=razorpay,
         seed=get_state().seed,
     )
 

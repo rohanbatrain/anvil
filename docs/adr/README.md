@@ -28,5 +28,6 @@ The record of having changed one's mind is the useful part.
 | [0013](0013-native-postgres-for-development.md) | Native Postgres for development, not Docker | Accepted |
 | [0014](0014-razorpay-mcp-as-a-development-tool.md) | Razorpay's MCP server is a development tool, not the product's gateway | Accepted |
 | [0015](0015-vps-over-managed-hosting.md) | A VPS with systemd and Caddy, not a managed platform | Accepted |
+| [0016](0016-real-credentials-on-the-demonstration-host.md) | The demonstration host holds real test-mode credentials | Accepted |
 
 New decisions start from [`000-template.md`](000-template.md).

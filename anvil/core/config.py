@@ -116,6 +116,27 @@ class Settings(BaseSettings):
             raise ValueError("seed must be positive so runs stay reproducible")
         return v
 
+    @field_validator("razorpay_key_id")
+    @classmethod
+    def _refuse_production_keys(cls, v: str) -> str:
+        """Anvil will not start against production Razorpay. Ever.
+
+        This is the control that makes running with real credentials on a public
+        host defensible rather than merely accepted. A leaked test-mode key can
+        create test orders; a leaked production key can move somebody's money,
+        and the difference between those two outcomes should not depend on
+        anybody remembering which key they pasted.
+
+        A refusal rather than a warning, because a warning is not a control.
+        """
+        if v and not v.startswith("rzp_test_"):
+            raise ValueError(
+                f"{v[:12]}... is not a test-mode key. Anvil refuses to run against "
+                "production Razorpay: it is a demonstration system and must never be "
+                "able to move real money. Use a rzp_test_ key."
+            )
+        return v
+
     @model_validator(mode="after")
     def _live_mode_needs_credentials(self) -> Settings:
         if self.mode is RunMode.LIVE:

@@ -68,19 +68,36 @@ if [[ ! -f /etc/anvil/anvil.env ]]; then
   cat > /etc/anvil/anvil.env <<'ENVEOF'
 # Anvil, public demonstration instance.
 #
-# This host deliberately holds NO Razorpay and NO Anthropic credentials. It runs
-# against the seeded simulator, so it cannot leak a payment key and cannot move
-# money. Live-mode testing happens on a developer machine behind a tunnel.
+# This file holds every credential the instance uses. It is mode 640, owned by
+# root, readable only by the anvil service account. It is never in git, never in
+# a container image, and never in the systemd unit (which is world-readable).
 #
-# The only secret here is the console password.
-ANVIL_MODE=offline
+# TEST MODE ONLY. anvil/core/config.py refuses to start against a key that does
+# not begin rzp_test_, so this instance cannot be pointed at production Razorpay
+# even by mistake. A leaked test key can create test orders; it cannot move
+# anybody's money.
+#
+# Rotate all of these after the demonstration period.
+ANVIL_MODE=live
 ANVIL_ENV=demo
 ANVIL_LOG_FORMAT=json
 ANVIL_LOG_LEVEL=INFO
 ANVIL_SEED=20260902
 ANVIL_PUBLIC_BASE_URL=https://anvil.rohanbatra.in
+
+# Gate on the console. Share with reviewers; it protects the demonstration.
 ANVIL_CONSOLE_USERNAME=reviewer
 ANVIL_CONSOLE_PASSWORD=CHANGE_ME
+
+# Razorpay, test mode. Dashboard -> Account & Settings -> API Keys.
+ANVIL_RAZORPAY_KEY_ID=
+ANVIL_RAZORPAY_KEY_SECRET=
+# You choose this value; paste the same one into the dashboard webhook.
+ANVIL_RAZORPAY_WEBHOOK_SECRET=
+
+# Anthropic. Set a spend limit on this key in the Anthropic console -- it is the
+# only credential here that can cost real money if abused.
+ANVIL_ANTHROPIC_API_KEY=
 ENVEOF
 fi
 chown root:"$APP_USER" /etc/anvil/anvil.env
@@ -155,9 +172,13 @@ $(printf '\033[1;32mBootstrap complete.\033[0m')
 
 Three things left, in this order:
 
-  1. Set the console password:
+  1. Fill in the credentials and the console password:
        sudo sed -i "s/CHANGE_ME/\$(openssl rand -base64 24 | tr -d '/+=')/" /etc/anvil/anvil.env
+       sudo nano /etc/anvil/anvil.env     # the four ANVIL_RAZORPAY_/ANTHROPIC values
        sudo grep CONSOLE_PASSWORD /etc/anvil/anvil.env      # note it down
+
+     Test-mode Razorpay keys only. The application refuses to start against a
+     rzp_live_ key, so a mistake here fails loudly rather than quietly.
 
   2. Add the CI public key so GitHub can deploy:
        echo '<ssh-ed25519 AAAA... key>' >> /home/$DEPLOY_USER/.ssh/authorized_keys

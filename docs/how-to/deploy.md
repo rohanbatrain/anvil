@@ -4,29 +4,51 @@ Target: **https://anvil.rohanbatra.in**, on a VPS running Ubuntu 22.04 or 24.04.
 
 ## The security posture, first
 
-Everything below follows from one decision, and it is worth understanding before
-running any of it.
+The instance runs **against real Razorpay test-mode credentials**, because a
+demonstration that only ever drives a simulator cannot show the one thing a
+payments reviewer can independently verify: that webhook signatures are checked
+correctly on payloads Razorpay actually signed.
 
-**The public instance holds no payment credentials at all.** It runs in offline
-mode against the seeded simulator. It cannot leak a Razorpay key because there
-is none on the machine, and it cannot move money because nothing is wired to a
-payment API. The only secret it holds is the console password, which protects
-the demonstration and nothing else.
+That is only defensible because of one control, and it is worth stating before
+anything else.
 
-Live mode and webhooks stay **local, behind a temporary tunnel**, only while you
-are testing. A permanently public endpoint holding real credentials is a
-liability with no upside for a demonstration.
+**Anvil refuses to start against a production Razorpay key.** `anvil/core/config.py`
+validates that `ANVIL_RAZORPAY_KEY_ID` begins `rzp_test_` and raises otherwise.
+Not a warning — a refusal, because a warning is not a control. This instance
+therefore *cannot* be pointed at production Razorpay, by mistake or otherwise,
+and a leaked key from this host can create test orders and nothing more.
 
-Both `deploy/deploy.sh` and the CI workflow **fail the deploy** if the running
-instance reports anything other than `offline`.
+The rest follows from that:
 
-| | Local `.env` | The VPS |
-|---|---|---|
-| Razorpay key id / secret | yes, for testing | **never** |
-| Razorpay webhook secret | yes, for testing | **never** |
-| Anthropic API key | yes | **never** |
-| `ANVIL_CONSOLE_PASSWORD` | not needed | **yes** — the only secret |
-| `ANVIL_MODE` | `live` while testing | `offline` |
+| Credential | On the box | Blast radius if leaked | Mitigation |
+|---|---|---|---|
+| Razorpay test key + secret | yes | Test orders only. No real money. | `rzp_test_` enforced at startup; rotate after the demo |
+| Razorpay webhook secret | yes | Useless without the keys above | rotate with them |
+| Anthropic API key | yes | **Real spend** — the only one that costs money | set a spend limit on the key in the Anthropic console |
+| `ANVIL_CONSOLE_PASSWORD` | yes | Access to the demonstration | shared deliberately with reviewers |
+
+All of them live in `/etc/anvil/anvil.env`, mode `640`, owned by root and
+readable only by the service account. Never in git, never in a container image,
+never in the systemd unit — which is world-readable.
+
+**The one that actually needs care is the Anthropic key**, because it is the
+only credential here that can cost real money. Put a spend limit on it.
+
+Both `deploy/deploy.sh` and the CI workflow verify the running instance reports
+test-mode Razorpay, so the control is enforced at startup *and* checked after
+every deploy. A control enforced in one place is enforced once.
+
+### The kill switch
+
+If anything looks wrong, one line takes the instance back to the simulator with
+no credentials in play:
+
+```bash
+sudo sed -i 's/^ANVIL_MODE=live/ANVIL_MODE=offline/' /etc/anvil/anvil.env
+sudo systemctl restart anvil
+```
+
+Then rotate the keys in the Razorpay and Anthropic dashboards.
 
 ## What gets installed, and why
 

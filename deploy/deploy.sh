@@ -64,10 +64,15 @@ for _ in $(seq 1 30); do
   if curl -fsS --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
     body="$(curl -fsS "$HEALTH_URL")"
     echo "$body"
-    # A public instance holding payment credentials would be the one mistake
-    # this whole deployment posture exists to prevent. Check it every time.
-    echo "$body" | grep -q '"mode":"offline"' \
-      || die "the deployed instance is NOT in offline mode; rolling back"
+    # The instance may legitimately run in live mode against Razorpay test
+    # credentials -- that is what makes the demonstration real. What must never
+    # happen is production credentials on a public host. The application already
+    # refuses to start with one; this checks the running result too, because a
+    # control that is only enforced in one place is enforced once.
+    if echo "$body" | grep -q '"razorpay"'; then
+      echo "$body" | grep -qE '"razorpay":"(test mode|not configured)' \
+        || die "the deployed instance is NOT on test-mode Razorpay; rolling back"
+    fi
     log "Healthy on ${STAMP}-${SHA}"
     # Keep the last few releases so a rollback needs no network.
     # Release names are UTC-timestamp-first, so lexicographic order is

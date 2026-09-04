@@ -33,11 +33,20 @@ class Amount(BaseModel):
 
 
 class Health(BaseModel):
+    """Enough to tell what this instance is wired to, and never a credential.
+
+    ``razorpay`` reports the *kind* of key in use rather than the key. That is
+    the difference between a useful health endpoint and a leak: a reviewer can
+    confirm the instance is on test mode, and nobody learns anything they could
+    use.
+    """
+
     status: str
     mode: str
     version: str
     database: str
     model: str
+    razorpay: str
     seed: int
 
 

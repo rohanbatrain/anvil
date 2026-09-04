@@ -307,7 +307,7 @@ Full index at [`docs/`](docs/).
 | **Understand it** | [Architecture](docs/explanation/architecture.md) · [Why not an LLM for retry timing](docs/explanation/why-not-an-llm-for-retry-timing.md) · [How recovery is measured](docs/explanation/the-evidence-model.md) · [Compliance](docs/explanation/compliance.md) |
 | **Look things up** | [The ten invariants](docs/reference/invariants.md) · [Money and the ledger](docs/reference/ledger.md) · [Policy and authorisation](docs/reference/policy.md) · [The agent](docs/reference/the-agent.md) · [Data model](docs/reference/data-model.md) · [HTTP API](docs/reference/api.md) · [Configuration](docs/reference/configuration.md) · [Glossary](docs/reference/glossary.md) |
 | **Do something** | [Run the batch](docs/how-to/run-the-batch.md) · [Deploy](docs/how-to/deploy.md) · [Operations](docs/how-to/operations.md) · [Connect Razorpay test mode](docs/how-to/connect-razorpay-test-mode.md) · [Fit the retry curves](docs/how-to/fit-the-retry-curves.md) |
-| **Decisions** | [15 architecture decision records](docs/adr/), each with the alternatives that lost |
+| **Decisions** | [16 architecture decision records](docs/adr/), each with the alternatives that lost |
 
 ## Honest limitations
 

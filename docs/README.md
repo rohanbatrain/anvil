@@ -86,7 +86,7 @@ Background and reasoning. Read when you want to understand rather than act.
 
 ## Architecture decision records
 
-- [**All 15 decisions**](adr/) — each with the alternatives that lost, and the
+- [**All 16 decisions**](adr/) — each with the alternatives that lost, and the
   ones that turned out to be wrong
 
 ---
