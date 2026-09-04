@@ -37,8 +37,12 @@ git -C "$REPO_DIR" archive "$REF" | tar -x -C "$RELEASE"
 log "Dependencies"
 # Installed into the shared venv rather than one per release: the dependency set
 # changes rarely, and a venv per release would mean 300MB per deploy.
+#
+# The dev extra is installed deliberately. The pre-flight below runs the new
+# release's own test suite before promoting it, and that is worth far more than
+# the few megabytes pytest and hypothesis cost on a demonstration host.
 "$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet -e "$RELEASE"
+"$VENV/bin/pip" install --quiet -e "$RELEASE[dev]"
 
 log "Pre-flight against the new code"
 # Refuse to promote a release whose own tests do not pass. Discovering that
