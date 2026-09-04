@@ -2,8 +2,13 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+# Every .env variant is a secret, including backups and per-host copies. The
+# original pattern covered .env and .env.local only, which meant a file named
+# .env.backup-20260904 sat untracked-but-not-ignored, one `git add -A` away
+# from being published.
 .env
-.env.local
+.env.*
+!.env.example
 *.egg-info/
 dist/
 build/
@@ -15,7 +20,6 @@ htmlcov/
 node_modules/
 .next/
 out/
-console/.env*.local
 .DS_Store
 *.db
 *.sqlite3
