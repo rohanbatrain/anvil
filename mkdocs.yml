@@ -1,0 +1,132 @@
+site_name: Anvil
+site_description: An agentic control plane that recovers failed recurring-payment debits.
+site_url: https://rohanbatrain.github.io/anvil/
+repo_url: https://github.com/rohanbatrain/anvil
+repo_name: rohanbatrain/anvil
+edit_uri: edit/main/docs/
+copyright: MIT licensed. Razorpay AI Buildathon 2026, Track 03.
+
+# docs/README.md is the map GitHub's renderer shows when you browse the folder.
+# MkDocs would turn it into the same URL as index.md, so it is excluded here and
+# the nav below mirrors it instead.
+exclude_docs: |
+  /README.md
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - Watch a recovery unfold: tutorials/journey-visualization.md
+      - Recover your first payment: tutorials/first-recovery.md
+  - How-to:
+      - Configure Claude: how-to/configure-claude.md
+      - Run the batch experiment: how-to/run-the-batch.md
+      - Deploy the public demonstration: how-to/deploy.md
+      - Operations: how-to/operations.md
+      - Add a decline code: how-to/add-a-decline-code.md
+      - Add or change a policy rule: how-to/add-a-policy-rule.md
+      - Connect Razorpay test mode: how-to/connect-razorpay-test-mode.md
+      - Fit the retry curves: how-to/fit-the-retry-curves.md
+  - Reference:
+      - Journey streaming API: reference/journey-api.md
+      - The ten invariants: reference/invariants.md
+      - Money and the ledger: reference/ledger.md
+      - Policy, authorisation and consent: reference/policy.md
+      - The recovery agent: reference/the-agent.md
+      - Data model: reference/data-model.md
+      - HTTP API: reference/api.md
+      - Configuration: reference/configuration.md
+      - Console design system: reference/design-system.md
+      - Evidence methodology: reference/evidence-methodology.md
+      - Testing: reference/testing.md
+      - Glossary: reference/glossary.md
+  - Explanation:
+      - Architecture: explanation/architecture.md
+      - Why not an LLM for retry timing: explanation/why-not-an-llm-for-retry-timing.md
+      - How recovery is measured: explanation/the-evidence-model.md
+      - Compliance: explanation/compliance.md
+  - Decisions:
+      - adr/README.md
+      - 0001 Modular monolith, event-sourced core: adr/0001-modular-monolith-event-sourced-core.md
+      - 0002 An append-only ledger: adr/0002-append-only-ledger.md
+      - 0003 LangGraph as the durable spine: adr/0003-langgraph-durable-spine.md
+      - 0004 Bounded commercial authority: adr/0004-bounded-authority.md
+      - 0005 Retry timing is a dynamic program: adr/0005-no-llm-for-retry-timing.md
+      - 0006 A policy gap blocks an action: adr/0006-policy-denies-on-no-match.md
+      - 0007 Authorisation before policy: adr/0007-authorisation-before-policy.md
+      - 0008 The orchestrator imports nothing: adr/0008-graph-depends-only-on-protocols.md
+      - 0009 Unknown gateway outcomes: adr/0009-unknown-gateway-outcomes.md
+      - 0010 Measured against a control arm: adr/0010-three-arm-evidence-model.md
+      - 0011 A buildless console: adr/0011-buildless-console.md
+      - 0012 Report the losing result: adr/0012-report-the-losing-result.md
+      - 0013 Native Postgres for development: adr/0013-native-postgres-for-development.md
+      - 0014 Razorpay MCP as a development tool: adr/0014-razorpay-mcp-as-a-development-tool.md
+      - 0015 A VPS over managed hosting: adr/0015-vps-over-managed-hosting.md
+      - 0016 Real credentials on the demo host: adr/0016-real-credentials-on-the-demonstration-host.md
+      - Template for a new decision: adr/000-template.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rohanbatrain/anvil

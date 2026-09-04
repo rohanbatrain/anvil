@@ -29,3 +29,10 @@ artifacts/
 # the environment and contains no secret. If you ever inline a token there,
 # uncomment the next line and rotate the key.
 # .mcp.json
+
+# MkDocs build output
+site/
+
+# Downloaded wheel and source archives
+*.whl
+*.tar.gz

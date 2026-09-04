@@ -140,6 +140,52 @@ td.r,th.r{text-align:right}
 .hidden{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:900px){.shell{grid-template-columns:1fr}.rail{position:static;height:auto}}
+
+/* ── journey DAG ── */
+.j-shell{display:grid;grid-template-columns:1fr 340px;gap:16px;min-height:520px}
+@media(max-width:1100px){.j-shell{grid-template-columns:1fr;grid-template-rows:auto auto}}
+.j-dag{position:relative;background:var(--surface);border:1px solid var(--hairline);border-radius:12px;overflow:hidden;min-height:480px}
+.j-dag svg{width:100%;height:100%}
+.j-dag svg text{font-family:var(--ui);font-size:11px;fill:var(--ink);pointer-events:none;user-select:none}
+.j-dag svg .dag-edge{stroke:var(--hairline-strong);stroke-width:1.5;fill:none;transition:stroke .3s,stroke-width .3s}
+.j-dag svg .dag-edge.lit{stroke:var(--accent);stroke-width:2.5;filter:drop-shadow(0 0 4px var(--accent))}
+.j-dag svg .dag-edge.lit{stroke-dasharray:8 4;animation:edge-flow .6s linear infinite}
+@keyframes edge-flow{to{stroke-dashoffset:-12}}
+.j-dag svg .dag-node{cursor:default;transition:filter .3s}
+.j-dag svg .dag-node rect,.j-dag svg .dag-node circle{transition:fill .3s,stroke .3s,filter .3s}
+.j-dag svg .dag-node.active rect,.j-dag svg .dag-node.active circle{filter:drop-shadow(0 0 10px var(--accent-hot)) drop-shadow(0 0 20px var(--accent))}
+.j-dag svg .dag-node.done rect,.j-dag svg .dag-node.done circle{opacity:.55}
+.j-dag svg .dag-node.terminal rect{fill:var(--ok);stroke:var(--ok)}
+.j-dag svg .dag-node.terminal rect+text{fill:#fff}
+@keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 6px var(--accent-hot))}50%{filter:drop-shadow(0 0 16px var(--accent)) drop-shadow(0 0 30px var(--accent))}}
+.j-dag svg .dag-node.active rect,.j-dag svg .dag-node.active circle{animation:pulse-glow 1.2s ease-in-out infinite}
+
+.j-side{display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:calc(100vh - 120px)}
+.j-case{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:14px}
+.j-case .name{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.j-case .amt{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--accent)}
+.j-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.j-metric{background:var(--sunken);border-radius:6px;padding:10px 12px}
+.j-metric .label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:2px}
+.j-metric .val{font-family:var(--mono);font-size:15px;font-weight:500}
+.j-log{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;flex:1;min-height:200px;overflow-y:auto;padding:0}
+.j-log .micro{padding:10px 14px 6px;border-bottom:1px solid var(--hairline)}
+.j-log-inner{padding:8px 14px;font-size:12px}
+.j-log-entry{padding:4px 0;display:flex;gap:8px;align-items:baseline;opacity:0;animation:fade-in .3s ease forwards}
+@keyframes fade-in{to{opacity:1}}
+.j-log-entry .kind{font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;min-width:32px;text-align:center;padding:1px 5px;border-radius:3px}
+.j-log-entry .kind-step{background:var(--info-wash);color:var(--info)}
+.j-log-entry .kind-model{background:#f3e8ff;color:#7c3aed}
+.j-log-entry .kind-gate{background:var(--warn-wash);color:var(--warn)}
+.j-log-entry .kind-pause{background:var(--risk-wash);color:var(--risk)}
+.j-log-entry .nname{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:64px}
+.j-log-entry .summ{color:var(--ink-muted);flex:1;font-size:11.5px}
+.j-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.j-controls select{min-width:200px}
+.j-status{font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:6px}
+.j-status .dot{width:8px;height:8px;border-radius:50%;background:var(--hairline-strong)}
+.j-status .dot.live{background:var(--ok);animation:dot-pulse 1s ease-in-out infinite}
+@keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 </style>
 </head>
 <body>
@@ -147,6 +193,8 @@ td.r,th.r{text-align:right}
   <aside class="rail">
     <div class="brand"><div class="n">Anvil</div><div class="t">recovery control plane</div></div>
     <nav id="nav">
+      <div class="micro grp">Understand</div>
+      <button data-v="journey">Journey</button>
       <div class="micro grp">Operate</div>
       <button data-v="approvals" class="on">Approval inbox</button>
       <button data-v="cockpit">Recovery cockpit</button>
@@ -193,7 +241,7 @@ $('#theme').onclick=()=>{
 };
 
 /* ---------- shell ---------- */
-const TITLES={approvals:'Approval inbox',cockpit:'Recovery cockpit',cases:'At-risk cases',
+const TITLES={journey:'Journey',approvals:'Approval inbox',cockpit:'Recovery cockpit',cases:'At-risk cases',
   scheduler:'Retry scheduler',policy:'Policy engine',classifier:'Failure classifier',ledger:'Ledger'};
 let view='approvals';
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-v]');if(!b)return;
@@ -218,7 +266,7 @@ function failed(e){$('#view').innerHTML=`<div class="note note-risk">Could not l
 
 async function render(){
   loading();
-  try{ await ({approvals:vApprovals,cockpit:vCockpit,cases:vCases,scheduler:vScheduler,
+  try{ await ({journey:vJourney,approvals:vApprovals,cockpit:vCockpit,cases:vCases,scheduler:vScheduler,
     policy:vPolicy,classifier:vClassifier,ledger:vLedger}[view])(); }
   catch(e){ failed(e); }
 }
@@ -660,6 +708,226 @@ async function vLedger(){
     }catch(e){out.innerHTML=`<div class="note note-risk">${esc(e.message)}</div>`;}
   };
   $('#l-go').onclick=run; run();
+}
+
+/* ---------- journey ---------- */
+let _journeyES=null;
+function _killJourney(){if(_journeyES){_journeyES.close();_journeyES=null;}}
+
+async function vJourney(){
+  _killJourney();
+  const meta=await api('/api/journey/scenarios');
+  const v=$('#view'); v.innerHTML='';
+
+  /* controls */
+  const ctlWrap=el('div','j-controls');
+  const sel=document.createElement('select'); sel.id='j-scenario';
+  meta.scenarios.forEach(s=>{const o=document.createElement('option');o.value=s.key;o.textContent=s.title;sel.append(o);});
+  const goBtn=el('button','btn btn-primary','▶ Run scenario');
+  const statusEl=el('div','j-status','<span class="dot"></span> Select a scenario and press Run');
+  ctlWrap.append(sel,goBtn,statusEl);
+  v.append(ctlWrap);
+
+  /* teaches */
+  const teachEl=el('div','note note-acc','');
+  teachEl.style.marginTop='12px';
+  v.append(teachEl);
+  sel.onchange=()=>{const s=meta.scenarios.find(x=>x.key===sel.value);if(s)teachEl.innerHTML='<b>'+esc(s.title)+'</b> — '+esc(s.teaches);};
+  sel.onchange();
+
+  /* shell */
+  const shell=el('div','j-shell'); shell.style.marginTop='12px';
+
+  /* DAG SVG */
+  const dagWrap=el('div','j-dag');
+  const svgEl=_buildDAG(meta.topology,meta.nodes);
+  dagWrap.append(svgEl);
+  shell.append(dagWrap);
+
+  /* sidebar */
+  const side=el('div','j-side');
+  const caseCard=el('div','j-case'); caseCard.innerHTML='<div class="dim">No case loaded yet.</div>';
+  side.append(caseCard);
+
+  const metricsWrap=el('div','j-metrics');
+  const mRecovered=_mBox('Recovered','—'); const mAtRisk=_mBox('At risk','—');
+  const mAttempts=_mBox('Attempts','0'); const mSafety=_mBox('Safety events','0');
+  const mLikelihood=_mBox('Recovery','—'); const mChurn=_mBox('Churn risk','—');
+  const mDegraded=_mBox('Degraded','No'); const mContacts=_mBox('Contacts','0');
+  metricsWrap.append(mRecovered.el,mAtRisk.el,mAttempts.el,mSafety.el,mLikelihood.el,mChurn.el,mDegraded.el,mContacts.el);
+  side.append(metricsWrap);
+
+  const logCard=el('div','j-log');
+  logCard.innerHTML='<div class="micro">Timeline</div>';
+  const logInner=el('div','j-log-inner'); logCard.append(logInner);
+  side.append(logCard);
+  shell.append(side);
+  v.append(shell);
+
+  function _mBox(label,init){const d=el('div','j-metric');d.innerHTML='<div class="label">'+esc(label)+'</div><div class="val">'+esc(init)+'</div>';return{el:d,set(v){d.querySelector('.val').textContent=v;}};}
+
+  let prevNode=null;
+  function activateNode(name,kind){
+    svgEl.querySelectorAll('.dag-node').forEach(n=>{
+      if(n.dataset.name===name){n.classList.add('active');n.classList.remove('done');}
+      else if(n.classList.contains('active')){n.classList.remove('active');n.classList.add('done');}
+    });
+    if(prevNode){
+      const edgeId='edge-'+prevNode+'-'+name;
+      const edge=svgEl.querySelector('#'+edgeId);
+      if(edge)edge.classList.add('lit');
+    }
+    prevNode=name;
+  }
+
+  function addLog(node,kind,summary){
+    const e=el('div','j-log-entry');
+    e.innerHTML='<span class="kind kind-'+esc(kind)+'">'+esc(kind.toUpperCase().slice(0,4))+'</span>'+
+      '<span class="nname">'+esc(node)+'</span><span class="summ">'+esc(summary)+'</span>';
+    logInner.append(e);
+    logInner.scrollTop=logInner.scrollHeight;
+  }
+
+  function updateMetrics(st){
+    if(!st)return;
+    mRecovered.set(st.recovered||'—');
+    mAtRisk.set(st.at_risk||'—');
+    mAttempts.set(String(st.attempts||0));
+    mSafety.set(String(st.safety_events||0));
+    mLikelihood.set(st.recovery_likelihood!=null?st.recovery_likelihood+'/1000':'—');
+    mChurn.set(st.churn_risk!=null?st.churn_risk+'/1000':'—');
+    mDegraded.set(st.degraded?'Yes — '+(st.degraded_reason||'unknown'):'No');
+    mContacts.set(String(st.contacts||0));
+  }
+
+  goBtn.onclick=()=>{
+    _killJourney();
+    /* reset UI */
+    svgEl.querySelectorAll('.dag-node').forEach(n=>{n.classList.remove('active','done','terminal');});
+    svgEl.querySelectorAll('.dag-edge').forEach(e=>e.classList.remove('lit'));
+    logInner.innerHTML='';
+    prevNode=null;
+    mRecovered.set('—');mAtRisk.set('—');mAttempts.set('0');mSafety.set('0');
+    mLikelihood.set('—');mChurn.set('—');mDegraded.set('No');mContacts.set('0');
+    caseCard.innerHTML='<div class="dim">Connecting…</div>';
+
+    const scenario=sel.value;
+    statusEl.innerHTML='<span class="dot live"></span> Streaming <b>'+esc(scenario)+'</b>…';
+    const es=new EventSource('/api/journey/stream?scenario='+encodeURIComponent(scenario));
+    _journeyES=es;
+
+    es.addEventListener('case',e=>{
+      const d=JSON.parse(e.data);
+      caseCard.innerHTML=
+        '<div class="name">'+esc(d.customer)+'</div>'+
+        '<div class="amt">'+esc(d.amount)+'</div>'+
+        '<div style="margin-top:6px"><dl class="kv" style="font-size:12px">'+
+          '<dt>Bank</dt><dd>'+esc(d.bank)+'</dd>'+
+          '<dt>Mandate</dt><dd>'+esc(d.mandate)+'</dd>'+
+          '<dt>Code</dt><dd class="mono">'+esc(d.raw_code)+(d.code_is_unmapped?' <span class="pill p-warn">unmapped</span>':'')+'</dd>'+
+          '<dt>Failed</dt><dd>'+esc(d.failed_at)+'</dd>'+
+          '<dt>True class</dt><dd>'+esc(d.true_failure_class)+'</dd>'+
+        '</dl></div>';
+      addLog('start','step','Case opened: '+d.customer+' · '+d.amount);
+    });
+
+    es.addEventListener('node',e=>{
+      const d=JSON.parse(e.data);
+      activateNode(d.node,d.kind);
+      addLog(d.node,d.kind,d.summary||d.purpose);
+      updateMetrics(d.state);
+    });
+
+    es.addEventListener('paused',e=>{
+      const d=JSON.parse(e.data);
+      addLog('pause','pause','Waiting on: '+d.waiting_on.join(', '));
+      statusEl.innerHTML='<span class="dot" style="background:var(--warn)"></span> Paused — '+esc(d.note||'waiting for human');
+    });
+
+    es.addEventListener('done',e=>{
+      const d=JSON.parse(e.data);
+      updateMetrics(d.state);
+      const node=svgEl.querySelector('.dag-node[data-name="close"]');
+      if(node){node.classList.add('active');node.classList.remove('done');}
+      if(d.status==='recovered'){const cl=svgEl.querySelector('.dag-node[data-name="close"]');if(cl)cl.classList.add('terminal');}
+      addLog('done',d.status==='recovered'?'step':'gate',d.status+': '+(d.closure_reason||''));
+      const statusPill=d.status==='recovered'?'p-ok':d.status==='abandoned'?'p-risk':'p-warn';
+      statusEl.innerHTML='<span class="pill '+statusPill+'">'+esc(d.status).toUpperCase()+'</span> '+
+        'Recovered '+esc(d.state?.recovered||'—')+' of '+esc(d.state?.at_risk||'—');
+      es.close(); _journeyES=null;
+    });
+
+    es.onerror=()=>{
+      statusEl.innerHTML='<span class="dot" style="background:var(--risk)"></span> Stream ended';
+      es.close(); _journeyES=null;
+    };
+  };
+}
+
+/* SVG DAG builder — pure layout, no external libs */
+function _buildDAG(topology,nodes){
+  const W=720,H=480,PAD=50;
+  const nodeMap={}; nodes.forEach(n=>nodeMap[n.name]=n);
+
+  /* topological layering */
+  const layers=[];
+  const layerOf={};
+  const ordered=['ingest','classify','score','diagnose','plan','authorise','step_up','policy','approval','schedule','execute','observe','close'];
+  /* manual 5-layer layout for readability */
+  const LAYOUT=[
+    ['ingest','classify','score'],
+    ['diagnose','plan'],
+    ['authorise','step_up','policy','approval'],
+    ['schedule','execute'],
+    ['observe','close']
+  ];
+  LAYOUT.forEach((layer,li)=>layer.forEach(n=>{layerOf[n]=li;}));
+
+  const positions={};
+  LAYOUT.forEach((layer,li)=>{
+    const x0=PAD; const xSpan=W-2*PAD;
+    layer.forEach((n,ni)=>{
+      const x=x0+(xSpan/(layer.length+1))*(ni+1);
+      const y=PAD+(H-2*PAD)/(LAYOUT.length-1)*li;
+      positions[n]={x,y};
+    });
+  });
+
+  const COLORS={step:'var(--info)',model:'#7c3aed',gate:'var(--warn)',pause:'var(--risk)'};
+  const FILLS={step:'var(--info-wash)',model:'#f3e8ff',gate:'var(--warn-wash)',pause:'var(--risk-wash)'};
+
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  svg+='<defs><marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--hairline-strong)"/></marker>';
+  svg+='<marker id="ah-lit" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--accent)"/></marker></defs>';
+
+  /* draw edges */
+  for(const [src,dsts] of Object.entries(topology)){
+    if(!positions[src])continue;
+    for(const dst of dsts){
+      if(dst==='END'||!positions[dst])continue;
+      const s=positions[src],d=positions[dst];
+      const mid=(s.y+d.y)/2;
+      svg+='<path id="edge-'+src+'-'+dst+'" class="dag-edge" d="M'+s.x+','+s.y+' C'+s.x+','+mid+' '+d.x+','+mid+' '+d.x+','+d.y+'" marker-end="url(#ah)"/>';
+    }
+  }
+
+  /* draw nodes */
+  for(const n of nodes){
+    if(!positions[n.name])continue;
+    const p=positions[n.name];
+    const col=COLORS[n.kind]||COLORS.step;
+    const fill=FILLS[n.kind]||FILLS.step;
+    const rw=48,rh=22;
+    svg+='<g class="dag-node" data-name="'+n.name+'" data-kind="'+n.kind+'">';
+    svg+='<rect x="'+(p.x-rw)+'" y="'+(p.y-rh)+'" width="'+(rw*2)+'" height="'+(rh*2)+'" rx="'+(n.kind==='pause'?rh:6)+'" fill="'+fill+'" stroke="'+col+'" stroke-width="1.5"/>';
+    svg+='<text x="'+p.x+'" y="'+(p.y+4)+'" text-anchor="middle" font-size="11" font-weight="500">'+n.name+'</text>';
+    svg+='</g>';
+  }
+
+  svg+='</svg>';
+  const div=document.createElement('div');
+  div.innerHTML=svg;
+  return div.firstElementChild;
 }
 
 boot();
