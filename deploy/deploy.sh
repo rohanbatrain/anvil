@@ -42,7 +42,7 @@ log "Dependencies"
 # release's own test suite before promoting it, and that is worth far more than
 # the few megabytes pytest and hypothesis cost on a demonstration host.
 "$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet -e "$RELEASE[dev]"
+"$VENV/bin/pip" install --quiet -e "${RELEASE}[dev]"
 
 log "Pre-flight against the new code"
 # Refuse to promote a release whose own tests do not pass. Discovering that
