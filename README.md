@@ -13,6 +13,12 @@ Razorpay AI Buildathon 2026 · Track 03: AI Revenue Recovery
 **Assessing this?** [`REVIEWING.md`](REVIEWING.md) is a guided path through the codebase in five,
 fifteen and thirty minutes, and it points you straight at the weakest part rather than around it.
 
+```
+Url: anvil.rohanbatra.in
+username: reviewer
+password: 4or4cTU1SBLJIET72I63eADe
+```
+
 ---
 
 ## The problem
